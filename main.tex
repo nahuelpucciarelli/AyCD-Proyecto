@@ -1,0 +1,72 @@
+\documentclass[11pt]{article}
+
+% Codificación y formato del documento
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{parskip}
+\usepackage{times}
+
+% Matemáticas y símbolos
+\usepackage{amsmath,amssymb,amsfonts,mathtools,siunitx}
+
+% Figuras y tablas
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption} 
+\usepackage{booktabs}
+
+% Código y algoritmos
+\usepackage{minted}     
+\usepackage{algorithmic}
+
+% Hipervínculos y colores
+\usepackage[colorlinks = true,
+            linkcolor = orange,
+            urlcolor  = magenta,
+            citecolor = magenta,
+            anchorcolor = blue]{hyperref}
+\usepackage{xcolor}
+
+% Otros utilitarios
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage[numbers,square,sort]{natbib}
+\usepackage{textcomp}
+\usepackage{comment}
+\usepackage{multirow}
+\usepackage{listings}
+
+% Directorio con imagenes
+\graphicspath{{./Imágenes/}}
+
+\title{\textbf{Control de Accionamientos y Automatización de Grúa Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}}
+
+\author{Aleo Rodrigo \\ Pucciarelli Nahuel \\ \\ AUTÓMATAS Y CONTROL DISCRETO \\ Universidad Nacional de Cuyo \\ Mendoza, Argentina}
+
+\date{2025}
+
+\begin{document}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\urlstyle{same}
+
+\maketitle
+
+\subsubsection*{Resumen}
+Desarrollo e implementación de un Sistema Híbrido de Control y Protección con Operación Semi-Automática
+coordinada para una Grúa Portacontenedores Portuaria de Muelle tipo Pórtico, para carga y descarga de
+contenedores (containers) en grandes barcos de transporte marítimo.
+
+El sistema híbrido de control y protección incluye 3 niveles jerárquicos:
+\begin{itemize}
+    \item  Nivel 2 – Control Regulatorio: estados continuos, muestreados en tiempo discretizado (Sampled CTDS).
+    \item Nivel 1 – Control Supervisor: autómata, estados discretos activados por eventos (DEDS).
+    \item Nivel 0 – Protección: en espera; actúa en situación de emergencia, lleva el sistema a estado seguro.
+\end{itemize}
+
+
+\end{document}
