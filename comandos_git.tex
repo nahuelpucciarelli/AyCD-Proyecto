@@ -1,0 +1,74 @@
+\documentclass[11pt]{article}    
+\usepackage[a4paper,margin=2.5cm]{geometry}  
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+
+\begin{document}
+\section*{Comandos Básicos para Subir Cambios (Git)}
+
+\begin{description}
+    \item[\texttt{git status}] \hfill \\
+    Muestra el estado actual del repositorio (archivos modificados, nuevos o listos para confirmar).
+    \item[\texttt{git add .}] \hfill \\
+    Agrega \textbf{todos} los archivos modificados y nuevos al área de preparación (\textit{staging area}). Si solo quieres un archivo específico, usa \texttt{git add <nombre\_archivo>}.
+    \item[\texttt{git commit -m "mensaje"}] \hfill \\
+    Guarda los cambios preparados en el historial local. Es importante usar un mensaje descriptivo entre las comillas.
+    \item[\texttt{git pull}] \hfill \\
+    Descarga y fusiona los cambios del repositorio remoto antes de subir los tuyos (recomendado para evitar conflictos). \textit{Nota: Cambia `main` por `master` si es necesario.}
+    \item[\texttt{git push}] \hfill \\
+    Sube tus \textit{commits} locales al repositorio remoto (GitHub/GitLab).
+\end{description}
+
+\section*{Manejo de Ramas (Branches)}
+
+\begin{description}
+    \item[\texttt{git branch}] \hfill \\
+    Lista todas las ramas locales. La rama actual aparecerá marcada con un asterisco (*).
+
+    \item[\texttt{git checkout -b <nombre\_rama>}] \hfill \\
+    Crea una nueva rama a partir de la actual y cambia a ella inmediatamente.
+
+    \item[\texttt{git checkout <nombre\_rama>}] \hfill \\
+    Cambia el entorno de trabajo a una rama existente.
+
+    \item[\texttt{git merge <nombre\_rama>}] \hfill \\
+    Fusiona la rama especificada (\texttt{<nombre\_rama>}) dentro de la rama en la que estás posicionado actualmente (generalmente se usa estando en \textit{main} o \textit{develop}).
+
+    \item[\texttt{git branch -d <nombre\_rama>}] \hfill \\
+    Elimina una rama localmente. Útil para limpiar después de haber fusionado los cambios.
+\end{description}
+
+\section*{Conflictos y Herramientas Útiles}
+
+\begin{description}
+    \item[\texttt{git stash}] \hfill \\
+    Guarda temporalmente tus cambios locales (sin hacer commit) para limpiar el área de trabajo. Muy útil si necesitas cambiar de rama urgentemente pero no quieres confirmar cambios a medio terminar.
+
+    \item[\texttt{git stash pop}] \hfill \\
+    Recupera y aplica los últimos cambios que guardaste con \texttt{stash}.
+
+    \item[\texttt{git diff}] \hfill \\
+    Muestra las diferencias exactas línea por línea. Es fundamental para ver qué causó un conflicto antes de editar el archivo.
+
+    \item[\texttt{git restore <archivo>}] \hfill \\
+    Deshace los cambios locales en un archivo específico, dejándolo igual que en el último commit (¡Cuidado! Los cambios se pierden permanentemente).
+\end{description}
+
+\section*{Eliminar archivos ya subidos}
+
+\begin{description}
+    \item[\texttt{git rm --cached <archivo>}] \hfill \\
+    \textbf{La opción más usada.} Borra el archivo del repositorio remoto pero \textbf{lo mantiene en tu disco local}.
+    \\ \textit{Úsalo cuando subiste por error un archivo compilado (como un .pdf o .exe) o una configuración local que no quieres perder pero que no debe estar en la nube.}
+
+    \item[\texttt{git rm <archivo>}] \hfill \\
+    \textbf{Opción destructiva.} Borra el archivo del repositorio y \textbf{también de tu computadora}.
+    \\ \textit{Úsalo solo si el archivo es basura y no lo necesitas más.}
+
+    \item[\texttt{git commit -m "borrar archivo"}] \hfill \\
+    Después de usar cualquiera de los comandos de \texttt{rm}, necesitas hacer el commit para confirmar el cambio.
+
+    \item[\texttt{git push origin main}] \hfill \\
+    Sube la confirmación para que el archivo desaparezca efectivamente de GitHub/GitLab.
+\end{description}
+\end{document}
