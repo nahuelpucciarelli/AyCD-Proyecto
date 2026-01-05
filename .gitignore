@@ -10,3 +10,7 @@
 *.bbl
 *.blg
 _minted-*
+comandos_git.tex
+
+# EXCEPCIONES
+!comandos_git.pdf
