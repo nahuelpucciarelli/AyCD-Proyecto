@@ -1,41 +1,22 @@
-\documentclass[11pt]{article}
+\documentclass[11pt]{article}                                       % Documento de artículo, tamaño de fuente 11pt
+\usepackage[spanish]{babel}                                         % Idioma español
+\usepackage[utf8]{inputenc}                                         % Codificación UTF-8
+\usepackage[a4paper,margin=2.5cm]{geometry}                         % Márgenes
+\usepackage{parskip,times}                                          % Espaciado entre párrafos y fuente Times New Roman
+\usepackage{amsmath,amssymb,amsfonts,mathtools}                     % Matemáticas avanzadas
+\usepackage[output-decimal-marker={,}]{siunitx}                     % Unidades SI
+\usepackage{graphicx,float,caption,subcaption,booktabs,mathptmx}    % Imágenes y tablas
+\usepackage{minted,algorithmic}                                     % Código fuente y pseudocódigo
+\usepackage[colorlinks=true, linkcolor=black, urlcolor=magenta, 
+            citecolor=orange, anchorcolor=blue]{hyperref}           % Hipervínculos
+\usepackage{xcolor}                                                 % Definición de colores
+\usepackage{fancyhdr,lastpage,textcomp,comment,multirow}            % Encabezados y pies de página
+\usepackage[numbers,square,sort]{natbib}                            % Bibliografía con estilo numérico
+\usepackage{microtype,cleveref}                                     % Mejoras tipográficas y referencias inteligentes
 
-% Codificación y formato del documento
-\usepackage[utf8]{inputenc}
-\usepackage[a4paper,margin=2.5cm]{geometry}
-\usepackage{parskip}
-\usepackage{times}
+% cleverref: En vez de escribir la Figura \ref{fig:motor}, escribes la \cref{fig:motor}
 
-% Matemáticas y símbolos
-\usepackage{amsmath,amssymb,amsfonts,mathtools,siunitx}
-
-% Figuras y tablas
-\usepackage{graphicx}
-\usepackage{float}
-\usepackage{caption}
-\usepackage{subcaption} 
-\usepackage{booktabs}
-
-% Código y algoritmos
-\usepackage{minted}     
-\usepackage{algorithmic}
-
-% Hipervínculos y colores
-\usepackage[colorlinks = true, linkcolor = orange, urlcolor  = magenta,
-            citecolor = magenta, anchorcolor = blue]{hyperref}
-\usepackage{xcolor}
-
-% Otros utilitarios
-\usepackage{fancyhdr}
-\usepackage{lastpage}
-\usepackage[numbers,square,sort]{natbib}
-\usepackage{textcomp}
-\usepackage{comment}
-\usepackage{multirow}
-\usepackage{listings}
-
-% Directorio con imagenes
-\graphicspath{{./Imágenes/}}
+\graphicspath{{./Imágenes/}} % Carpeta donde se encuentran las imágenes
 
 \title{\textbf{Control de Accionamientos y Automatización de Grúa
 Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}}
@@ -47,28 +28,42 @@ Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}
 
 \begin{document}
 
+ % Configuración de encabezados y pies de página
 \pagestyle{fancy}
 \fancyhf{}
 \fancyfoot[R]{\thepage}
-\renewcommand{\headrulewidth}{0pt}
-\urlstyle{same}
+\renewcommand{\headrulewidth}{0pt} 
+\urlstyle{same} 
 
 \maketitle
 
 \subsubsection*{Resumen}
-Desarrollo e implementación de un Sistema Híbrido de Control y Protección con
-Operación Semi-Automática coordinada para una Grúa Portacontenedores Portuaria
-de Muelle tipo Pórtico, para carga y descarga de contenedores (containers) en
-grandes barcos de transporte marítimo.
+Desarrollo e implementación de un Sistema Híbrido de Control y Protección con Operación Semi-Automática coordinada para una Grúa Portacontenedores Portuaria de Muelle tipo Pórtico, para carga y descarga de contenedores (containers) en grandes barcos de transporte marítimo.
 
 El sistema híbrido de control y protección incluye 3 niveles jerárquicos:
 \begin{itemize}
-    \item Nivel 2 - Control Regulatorio: estados continuos, muestreados en
-    tiempo discretizado (Sampled CTDS).
-    \item Nivel 1 - Control Supervisor: autómata, estados discretos activados
-    por eventos (DEDS).
-    \item Nivel 0 - Protección: en espera; actúa en situación de emergencia,
-    lleva el sistema a estado seguro.
+    \item Nivel 2 - Control Regulatorio: estados continuos, muestreados en tiempo discretizado (Sampled CTDS).
+    \item Nivel 1 - Control Supervisor: autómata, estados discretos activados por eventos (DEDS).
+    \item Nivel 0 - Protección: en espera; actúa en situación de emergencia, lleva el sistema a estado seguro.
+\end{itemize}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Desarrollo y modelado}
+Este proyecto considera el control de accionamientos eléctricos y operación semi-automática coordinada de los dos movimientos principales continuos y simultáneos de la grúa en un plano vertical (2D): traslación horizontal del carro (Trolley) sobre las vigas principal y móvil (paralelo al eje $x$); e Izaje/descenso, o traslación vertical, de la carga (Hoist) bajo la posición del carro (paralelo al eje $y$).
+
+Ambos movimientos son impulsados mediante cables de acero (wireropes) desde mecanismos rotativos con tambores, cajas de engranajes, frenos mecánicos y motores eléctricos, ubicados en una Casa de Máquinas (Machinery House) fija, con sus correspondientes accionamientos electrónicos de velocidad variable; dichos movimientos tienen \textit{restricciones de operación}: posiciones límite de recorrido, velocidades máximas y aceleraciones máximas. Están \textit{acoplados entre sí por la carga} (headblock/spreader con o sin container), que se balancea suspendida del carro que la traslada mediante los cables de izaje.
+
+\subsection{Hipótesis simplificativas}
+Para el modelado dinámico de los movimientos de la grúa, se consideran las siguientes hipótesis simplificativas:
+\begin{itemize}
+    \item \textit{Estructura:} Se asume totalmente rígida; se desprecian las deformaciones y vibraciones de las vigas y el pórtico.
+    \item \textit{Mecanismo de carro:} Se modela como una transmisión rígida accionada por un cable equivalente siempre en tensión, considerando su elasticidad longitudinal y amortiguamiento.
+    \item \textit{Sistema de izaje:} Se simplifica a un sistema equivalente (un solo motor/tambor). El cable se considera de masa despreciable y comportamiento elástico solo a tracción (no soporta compresión).
+    \item \textit{Carga:} Se modela como una masa puntual concentrada en la base del spreader, con 2 grados de libertad en el plano vertical (2D).
+    \item \textit{Efectos externos:} Solo se consideran la gravedad y las fuerzas de contacto vertical (modelo elástico lineal). Se desprecia la resistencia aerodinámica frontal al viento de la carga y del carro en movimiento.
 \end{itemize}
 
 \end{document}
