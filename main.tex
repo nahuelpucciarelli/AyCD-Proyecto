@@ -65,33 +65,102 @@ Para el modelado dinámico de los movimientos de la grúa, se consideran las sig
     \item \textit{Efectos externos:} Solo se consideran la gravedad y las fuerzas de contacto vertical (modelo elástico lineal). Se desprecia la resistencia aerodinámica frontal al viento de la carga y del carro en movimiento.
 \end{itemize}
 
-\subsection{Accionamiento y traslación del Carro}
-\subsubsection{Dinámica del motor y freno (eje rápido)}
-El motor genera torque, el freno se opone y la inercia resiste el cambio de velocidad. Esto se ve reflejado en la ecuación dinámica fundamental del eje del motor:
-\begin{equation}
-    J_{tm+tb} \, \frac{d\omega_{tm}}{dt} = T_{tm} + T_{tb} - b_{tm} \, \omega_{tm} - \frac{T_{td}}{i_t}
-\end{equation}
-donde $T_{tm}$ es el torque eléctico, $T_{tb}$ el del freno, y $\frac{T_{td}}{i_t}$ es el torque de carga reflejado desde el tambor. 
+\subsection{Accionamiento del Carro}
 
-\subsubsection{Transmisión y tambor (eje lento)}
-La caja reductora reduce la velocidad y aumenta el torque. El tambor convierte movimiento rotacional a lineal.
+El sistema de traslación del carro se modela como un sistema electromecánico de dos masas (inercia rotacional del accionamiento y masa traslacional del carro) acopladas mediante un elemento flexible (cable de acero). A continuación, se presentan las ecuaciones fundamentales y su desarrollo para la simulación.
+
+\subsubsection{Dinámica del Carro (Masa Traslacional)}
+Aplicando la segunda ley de Newton al movimiento horizontal del carro, se tiene:
+\begin{equation} \label{eq:carro_newton}
+    M_t \, \frac{dv_t(t)}{dt} = F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t)
+\end{equation}
+Donde:
 \begin{itemize}
-    \item Relación de transmisión: $\omega_{td} = \frac{\omega_{tm}}{i_t}$
-    \item Conversión a lineal (en el tambor): $v_{dt} = r_{td} \, \omega_{td}$. Nota: $v_dt$ es la \textit{velocidad lineal del cable en el tambor}, no la del carro.
+    \item $M_t$: Masa del carro.
+    \item $F_{tw}(t)$: Fuerza de tracción ejercida por el cable.
+    \item $b_t$: Coeficiente de fricción viscosa del carro sobre los rieles.
+    \item $F_{coupling}(t) = 2 F_{hw} \sin(\theta_l)$: Fuerza horizontal perturbadora debida al balanceo de la carga.
 \end{itemize}
 
-\subsubsection{Elasticidad del cable (acoplamiento)}
-El cable no es rígido, actúa como resorte ($K_{tw}$) y amortiguador ($b_{tw}$) entre la posicion demandada por el tambor ($x_{td}$) y la posición real del carro ($x_t$). La fuerza de tracción del cable es:
+\subsubsection{Acoplamiento Elástico (Cable de Acero)}
+El cable transmite la fuerza entre el tambor y el carro. Se modela como un resorte con rigidez $K_{tw}$ y un amortiguador $b_{tw}$:
+\begin{equation} \label{eq:fuerza_cable}
+    F_{tw}(t) = K_{tw} \, (x_{td}(t) - x_t(t)) + b_{tw} \, (v_{td}(t) - v_t(t))
+\end{equation}
+Donde $x_{td}$ y $v_{td}$ son la posición y velocidad lineal equivalente del cable en la superficie del tambor.
+
+\subsubsection{Dinámica del Tambor (Eje Lento)}
+La dinámica rotacional del eje de salida (tambor) está dada por:
+\begin{equation} \label{eq:eje_lento}
+    J_{td} \cdot \frac{d\omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \cdot \omega_{td}(t) - T_{tdl}(t)
+\end{equation}
+Donde $T_{tdl}(t) = F_{tw}(t) \cdot r_{td}$ es el torque de carga generado por la tensión del cable.
+
+\subsubsection{Dinámica del Motor y Freno (Eje Rápido)}
+La dinámica del eje de entrada (motor) se define como:
+\begin{equation} \label{eq:eje_rapido}
+    J_{tm+tb} \cdot \frac{d\omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \cdot \omega_{tm}(t) - T_{tml}(t)
+\end{equation}
+Donde $T_{tml}$ es el torque resistente que la caja reductora demanda al motor.
+
+\subsection{Deducción del Modelo Equivalente Referido al Motor}
+
+Para la simulación y el diseño de control, es necesario unificar las ecuaciones (\ref{eq:eje_lento}) y (\ref{eq:eje_rapido}) en una sola ecuación diferencial referida al eje del motor.
+
+\subsubsection{Relaciones Cinemáticas y de Transmisión}
+La caja reductora vincula el eje rápido y el lento mediante la relación de transmisión $i_t$:
+\begin{align}
+    \text{Velocidades:} & \quad \omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t} \implies \frac{d\omega_{td}}{dt} = \frac{1}{i_t}\frac{d\omega_{tm}}{dt} \label{eq:rel_vel} \\
+    \text{Torques:} & \quad T_{td}(t) = T_{tml}(t) \cdot i_t \label{eq:rel_torque}
+\end{align}
+
+\subsubsection{Reflexión de Inercia y Fricción}
+Sustituyendo las relaciones (\ref{eq:rel_vel}) y (\ref{eq:rel_torque}) en la ecuación del eje lento (\ref{eq:eje_lento}):
+
+\begin{equation*}
+    J_{td} \cdot \left( \frac{1}{i_t} \frac{d\omega_{tm}}{dt} \right) = (T_{tml} \cdot i_t) - b_{td} \cdot \left( \frac{\omega_{tm}}{i_t} \right) - T_{tdl}
+\end{equation*}
+
+Para despejar el torque de carga en el eje motor ($T_{tml}$), dividimos toda la ecuación por $i_t$:
+
 \begin{equation}
-    F_{tw} = K_{tw} \, (x_{td} - x_t) + b_{tw} \, (v_{td} - v_t)
+    \underbrace{\frac{J_{td}}{i_t^2}}_{\text{Inercia Reflejada}} \cdot \frac{d\omega_{tm}}{dt} = T_{tml} - \underbrace{\frac{b_{td}}{i_t^2}}_{\text{Fricción Reflejada}} \cdot \omega_{tm} - \frac{T_{tdl}}{i_t}
 \end{equation}
 
-\subsubsection{Dinámica del carro (masa traslacional)}
-Finalmente, se aplica la segunda ley de Newton al carro:
+Despejando $T_{tml}$ y sustituyéndolo en la ecuación del eje rápido (\ref{eq:eje_rapido}), obtenemos la ecuación unificada:
+
 \begin{equation}
-    M_t \, \frac{dv_t}{dt} = F_{tw} - b_t \, v_t + F_{coupling}
+    \left( J_{tm+tb} + \frac{J_{td}}{i_t^2} \right) \frac{d\omega_{tm}}{dt} = T_{tm} + T_{tb} - \left( b_{tm} + \frac{b_{td}}{i_t^2} \right) \omega_{tm} - \frac{T_{tdl}}{i_t}
 \end{equation}
-donde $F_{coupling} = 2\,F_{hw} \, \sin\theta_l$.
+
+Se definen los parámetros equivalentes totales:
+\begin{equation} \label{eq:parametros_eq}
+    J_{eq} = J_{tm+tb} + \frac{J_{td}}{i_t^2} \quad ; \quad b_{eq} = b_{tm} + \frac{b_{td}}{i_t^2}
+\end{equation}
+
+\subsection{Modelo de Espacio de Estados para Simulación}
+
+Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques integradores en Simulink.
+
+\begin{equation}
+    \frac{d\omega_{tm}(t)}{dt} = \frac{1}{J_{eq}} \left[ T_{tm}(t) + T_{tb}(t) - b_{eq} \cdot \omega_{tm}(t) - \frac{r_{td}}{i_t} F_{tw}(t) \right]
+\end{equation}
+Variables auxiliares para la integración:
+\begin{itemize}
+    \item Velocidad lineal tambor: $v_{td}(t) = \frac{r_{td}}{i_t} \omega_{tm}(t)$
+    \item Posición lineal tambor: $x_{td}(t) = \int v_{td}(t) \, dt$
+\end{itemize}
+
+\begin{equation}
+    F_{tw}(t) = K_{tw} (x_{td}(t) - x_t(t)) + b_{tw} (v_{td}(t) - v_t(t))
+\end{equation}
+
+\begin{equation}
+    \frac{dv_t(t)}{dt} = \frac{1}{M_t} \left[ F_{tw}(t) - b_t \cdot v_t(t) + F_{coupling}(t) \right]
+\end{equation}
+\begin{equation}
+    \frac{dx_t(t)}{dt} = v_t(t)
+\end{equation}
 
 \subsection{Accionamiento y traslación del Izaje}
 
