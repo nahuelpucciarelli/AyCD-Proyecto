@@ -124,7 +124,7 @@ Sustituyendo las relaciones (\ref{eq:rel_vel}) y (\ref{eq:rel_torque}) en la ecu
 Para despejar el torque de carga en el eje motor ($T_{tml}$), dividimos toda la ecuación por $i_t$:
 
 \begin{equation}
-    \underbrace{\frac{J_{td}}{i_t^2}}_{\text{Inercia Reflejada}} \, \frac{d\omega_{tm}}{dt} = T_{tml} - \underbrace{\frac{b_{td}}{i_t^2}}_{\text{Fricción Reflejada}} \, \omega_{tm} - \frac{T_{tdl}}{i_t}
+    \frac{J_{td}}{i_t^2}\, \frac{d\omega_{tm}}{dt} = T_{tml} - \frac{b_{td}}{i_t^2} \, \omega_{tm} - \frac{T_{tdl}}{i_t}
 \end{equation}
 
 Despejando $T_{tml}$ y sustituyéndolo en la ecuación del eje rápido (\ref{eq:eje_rapido}), obtenemos la ecuación unificada:
@@ -138,7 +138,22 @@ Se definen los parámetros equivalentes totales:
     J_{eq} = J_{tm+tb} + \frac{J_{td}}{i_t^2} \quad ; \quad b_{eq} = b_{tm} + \frac{b_{td}}{i_t^2}
 \end{equation}
 
-\subsection{Modelo de Espacio de Estados para Simulación}
+\subsubsection{Modelo del Freno Mecánico de Operación}
+El sistema dispone de un freno mecánico en el eje rápido del motor, configurado como Normal Cerrado (NC) por seguridad. El torque de frenado $T_{tb}$ depende del estado lógico de la señal de control $BRK_t$ (0: Desenergizado/Cerrado, 1: Energizado/Abierto).
+
+Para evitar discontinuidades numéricas abruptas durante la simulación (chattering) al momento de la detención, se modela la fricción del freno cerrado utilizando una función tangente hiperbólica escalada, tal como sugiere la especificación técnica:
+
+\begin{equation} \label{eq:brake_model}
+    T_{tb}(t) = 
+    \begin{cases} 
+        0 & \text{si } BRK_t = 1 \text{ (Abierto/Energizado)} \\
+        -T_{tb\_Max} \cdot \tanh(b_{tb} \cdot \omega_{tm}(t)) & \text{si } BRK_t = 0 \text{ (Cerrado/Frenado)}
+    \end{cases}
+\end{equation}
+
+Donde $T_{tb\_Max}$ es el torque máximo de fricción estática del freno y $b_{tb}$ es un coeficiente de pendiente elevada que aproxima el comportamiento de la fricción de Coulomb/Viscosa cerca de la velocidad cero.
+
+\subsubsection{Modelo de Espacio de Estados para Simulación}
 
 Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques integradores en Simulink.
 
@@ -186,5 +201,6 @@ El eje lento (tambor + freno de emergencia) y el rápido (motor + freno de opera
 \begin{equation}
     J_{hm+hb} \, \frac{d\omega_{hm}(t)}{dt} = T_{hm}(t) + T_{hb}\bigl(t, BRK_h\bigr) - b_{hm} \, \omega_{hm}(t) - T_{hml}(t)
 \end{equation}
+
 
 \end{document}
