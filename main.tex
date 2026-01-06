@@ -1,18 +1,17 @@
-\documentclass[11pt]{article}                                       % Documento de artículo, tamaño de fuente 11pt
-\usepackage[spanish]{babel}                                         % Idioma español
-\usepackage[utf8]{inputenc}                                         % Codificación UTF-8
-\usepackage[a4paper,margin=2.5cm]{geometry}                         % Márgenes
-\usepackage{parskip,times}                                          % Espaciado entre párrafos y fuente Times New Roman
-\usepackage{amsmath,amssymb,amsfonts,mathtools}                     % Matemáticas avanzadas
-\usepackage[output-decimal-marker={,}]{siunitx}                     % Unidades SI
-\usepackage{graphicx,float,caption,subcaption,booktabs,mathptmx}    % Imágenes y tablas
-\usepackage{algorithmic}                                            % Pseudocódigo
+\documentclass[11pt]{article}                                    % Documento de artículo, tamaño de fuente 11pt
+\usepackage[spanish]{babel}                                      % Idioma español
+\usepackage[a4paper,margin=2.5cm]{geometry}                      % Márgenes
+\usepackage{parskip,mlmodern,charter}                                     % Espaciado entre párrafos y fuente
+\usepackage{mathtools,amssymb}                                   % Matemáticas avanzadas
+\usepackage[output-decimal-marker={,}]{siunitx}                  % Unidades SI
+\usepackage{graphicx,subcaption,booktabs,multirow}               % Imágenes y tablas
+\usepackage{algorithmicx}                                        % Pseudocódigo
+\usepackage{xcolor}                                              % Definición de colores
+\usepackage{fancyhdr,lastpage}                                   % Encabezados y pies de página
+\usepackage[numbers,square,sort]{natbib}                         % Bibliografía con estilo numérico
 \usepackage[colorlinks=true, linkcolor=black, urlcolor=magenta, 
-            citecolor=orange, anchorcolor=blue]{hyperref}           % Hipervínculos
-\usepackage{xcolor}                                                 % Definición de colores
-\usepackage{fancyhdr,lastpage,textcomp,comment,multirow}            % Encabezados y pies de página
-\usepackage[numbers,square,sort]{natbib}                            % Bibliografía con estilo numérico
-\usepackage{microtype,cleveref}                                     % Mejoras tipográficas y referencias inteligentes
+            citecolor=orange, anchorcolor=blue]{hyperref}        % Hipervínculos
+\usepackage{microtype,cleveref}                                  % Mejoras tipográficas y referencias inteligentes
 
 % cleverref: En vez de escribir la Figura \ref{fig:motor}, escribes la \cref{fig:motor}
 
@@ -24,7 +23,7 @@ Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}
 \author{Aleo Rodrigo \\ Pucciarelli Nahuel \\ \\ AUTÓMATAS Y CONTROL DISCRETO 
 \\ Universidad Nacional de Cuyo \\ Mendoza, Argentina}
 
-\date{2025}
+\date{2026}
 
 \begin{document}
 
@@ -66,8 +65,30 @@ Para el modelado dinámico de los movimientos de la grúa, se consideran las sig
     \item \textit{Efectos externos:} Solo se consideran la gravedad y las fuerzas de contacto vertical (modelo elástico lineal). Se desprecia la resistencia aerodinámica frontal al viento de la carga y del carro en movimiento.
 \end{itemize}
 
-\subsection{Accionamiento del Carro}
-\subsection{Traslación del Carro}
-\subsection{Accionamiento del Izaje}
+\subsection{Accionamiento y traslación del Carro}
+\subsubsection{Dinámica del motor y freno (eje rápido)}
+El motor genera torque, el freno se opone y la inercia resiste el cambio de velocidad. Esto se ve reflejado en la ecuación dinámica fundamental del eje del motor:
+\begin{equation}
+    J_{tm+tb} \, \frac{d\omega_{tm}}{dt} = T_{tm} + T_{tb} - b_{tm} \, \omega_{tm} - \frac{T_{td}}{i_t}
+\end{equation}
+donde $T_{tm}$ es el torque eléctico, $T_{tb}$ el del freno, y $\frac{T_{td}}{i_t}$ es el torque de carga reflejado desde el tambor. 
+\subsubsection{Transmisión y tambor (eje lento)}
+La caja reductora reduce la velocidad y aumenta el torque. El tambor convierte movimiento rotacional a lineal.
+\begin{itemize}
+    \item Relación de transmisión: $\omega_{td} = \frac{\omega_{tm}}{i_t}$
+    \item Conversión a lineal (en el tambor): $v_{dt} = r_{td} \, \omega_{td}$. Nota: $v_dt$ es la \textit{velocidad lineal del cable en el tambor}, no la del carro.
+\end{itemize}
+\subsubsection{Elasticidad del cable (acoplamiento)}
+El cable no es rígido, actúa como resorte ($K_{tw}$) y amortiguador ($b_{tw}$) entre la posicion demandada por el tambor ($x_{td}$) y la posición real del carro ($x_t$). La fuerza de tracción del cable es:
+\begin{equation}
+    F_{tw} = K_{tw} \, (x_{td} - x_t) + b_{tw} \, (v_{td} - v_t)
+\end{equation}
+\subsubsection{Dinámica del carro (masa traslacional)}
+Finalmente, se aplica la segunda ley de Newton al carro:
+\begin{equation}
+    M_t \, \frac{dv_t}{dt} = F_{tw} - b_t \, v_t + F_{coupling}
+\end{equation}
+donde $F_{coupling} = 2\,F_{hw} \, \sin\theta_l$.
+\subsection{Accionamiento y traslación del Izaje}
 
 \end{document}
