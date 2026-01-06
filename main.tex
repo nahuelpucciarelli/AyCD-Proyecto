@@ -143,6 +143,7 @@ Se definen los parámetros equivalentes totales:
 Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques integradores en Simulink.
 
 \begin{equation}
+    \frac{d\omega_{tm}(t)}{dt} = \frac{1}{J_{eq}} \left[ T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{eq} \cdot \omega_{tm}(t) - \frac{r_{td}}{i_t} F_{tw}(t) \right]
     \frac{d\omega_{tm}(t)}{dt} = \frac{1}{J_{eq}} \left[ T_{tm}(t) + T_{tb}(t) - b_{eq} \, \omega_{tm}(t) - \frac{r_{td}}{i_t} F_{tw}(t) \right]
 \end{equation}
 Variables auxiliares para la integración:
