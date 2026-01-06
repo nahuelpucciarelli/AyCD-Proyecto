@@ -92,14 +92,14 @@ Donde $x_{td}$ y $v_{td}$ son la posición y velocidad lineal equivalente del ca
 \subsubsection{Dinámica del Tambor (Eje Lento)}
 La dinámica rotacional del eje de salida (tambor) está dada por:
 \begin{equation} \label{eq:eje_lento}
-    J_{td} \cdot \frac{d\omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \cdot \omega_{td}(t) - T_{tdl}(t)
+    J_{td} \, \frac{d\omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \, \omega_{td}(t) - T_{tdl}(t)
 \end{equation}
-Donde $T_{tdl}(t) = F_{tw}(t) \cdot r_{td}$ es el torque de carga generado por la tensión del cable.
+Donde $T_{tdl}(t) = F_{tw}(t) \, r_{td}$ es el torque de carga generado por la tensión del cable.
 
 \subsubsection{Dinámica del Motor y Freno (Eje Rápido)}
 La dinámica del eje de entrada (motor) se define como:
 \begin{equation} \label{eq:eje_rapido}
-    J_{tm+tb} \cdot \frac{d\omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \cdot \omega_{tm}(t) - T_{tml}(t)
+    J_{tm+tb} \, \frac{d\omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \, \omega_{tm}(t) - T_{tml}(t)
 \end{equation}
 Donde $T_{tml}$ es el torque resistente que la caja reductora demanda al motor.
 
@@ -111,20 +111,20 @@ Para la simulación y el diseño de control, es necesario unificar las ecuacione
 La caja reductora vincula el eje rápido y el lento mediante la relación de transmisión $i_t$:
 \begin{align}
     \text{Velocidades:} & \quad \omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t} \implies \frac{d\omega_{td}}{dt} = \frac{1}{i_t}\frac{d\omega_{tm}}{dt} \label{eq:rel_vel} \\
-    \text{Torques:} & \quad T_{td}(t) = T_{tml}(t) \cdot i_t \label{eq:rel_torque}
+    \text{Torques:} & \quad T_{td}(t) = T_{tml}(t) \, i_t \label{eq:rel_torque}
 \end{align}
 
 \subsubsection{Reflexión de Inercia y Fricción}
 Sustituyendo las relaciones (\ref{eq:rel_vel}) y (\ref{eq:rel_torque}) en la ecuación del eje lento (\ref{eq:eje_lento}):
 
 \begin{equation*}
-    J_{td} \cdot \left( \frac{1}{i_t} \frac{d\omega_{tm}}{dt} \right) = (T_{tml} \cdot i_t) - b_{td} \cdot \left( \frac{\omega_{tm}}{i_t} \right) - T_{tdl}
+    J_{td} \, \left( \frac{1}{i_t} \frac{d\omega_{tm}}{dt} \right) = (T_{tml} \, i_t) - b_{td} \, \left( \frac{\omega_{tm}}{i_t} \right) - T_{tdl}
 \end{equation*}
 
 Para despejar el torque de carga en el eje motor ($T_{tml}$), dividimos toda la ecuación por $i_t$:
 
 \begin{equation}
-    \underbrace{\frac{J_{td}}{i_t^2}}_{\text{Inercia Reflejada}} \cdot \frac{d\omega_{tm}}{dt} = T_{tml} - \underbrace{\frac{b_{td}}{i_t^2}}_{\text{Fricción Reflejada}} \cdot \omega_{tm} - \frac{T_{tdl}}{i_t}
+    \underbrace{\frac{J_{td}}{i_t^2}}_{\text{Inercia Reflejada}} \, \frac{d\omega_{tm}}{dt} = T_{tml} - \underbrace{\frac{b_{td}}{i_t^2}}_{\text{Fricción Reflejada}} \, \omega_{tm} - \frac{T_{tdl}}{i_t}
 \end{equation}
 
 Despejando $T_{tml}$ y sustituyéndolo en la ecuación del eje rápido (\ref{eq:eje_rapido}), obtenemos la ecuación unificada:
@@ -143,7 +143,7 @@ Se definen los parámetros equivalentes totales:
 Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques integradores en Simulink.
 
 \begin{equation}
-    \frac{d\omega_{tm}(t)}{dt} = \frac{1}{J_{eq}} \left[ T_{tm}(t) + T_{tb}(t) - b_{eq} \cdot \omega_{tm}(t) - \frac{r_{td}}{i_t} F_{tw}(t) \right]
+    \frac{d\omega_{tm}(t)}{dt} = \frac{1}{J_{eq}} \left[ T_{tm}(t) + T_{tb}(t) - b_{eq} \, \omega_{tm}(t) - \frac{r_{td}}{i_t} F_{tw}(t) \right]
 \end{equation}
 Variables auxiliares para la integración:
 \begin{itemize}
@@ -156,7 +156,7 @@ Variables auxiliares para la integración:
 \end{equation}
 
 \begin{equation}
-    \frac{dv_t(t)}{dt} = \frac{1}{M_t} \left[ F_{tw}(t) - b_t \cdot v_t(t) + F_{coupling}(t) \right]
+    \frac{dv_t(t)}{dt} = \frac{1}{M_t} \left[ F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t) \right]
 \end{equation}
 \begin{equation}
     \frac{dx_t(t)}{dt} = v_t(t)
