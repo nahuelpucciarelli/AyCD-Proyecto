@@ -136,74 +136,74 @@ Ts0 = 20e-3;               % [s] Nivel 0 – Seguridad / Protección
 % Se listan para documentar NOMBRE, UNIDADES y SIGNIFICADO.
 %% ============================================================
 
-% --- Estados/variables cinemáticas globales ---
-xt  = 0;                   % [m]   Posición horizontal del carro (trolley)
-vt  = 0;                   % [m/s] Velocidad horizontal del carro
-at  = 0;                   % [m/s^2] Aceleración del carro (derivada de vt)
-
-xl  = 0;                   % [m]   Posición horizontal de la carga (punto material)
-yl  = Yt0 - 10;            % [m]   Posición vertical de la carga (spreader/base)
-vlx = 0;                   % [m/s] Velocidad horizontal de la carga
-vly = 0;                   % [m/s] Velocidad vertical de la carga
-
-% --- Coordenadas del péndulo equivalente (restricción geométrica) ---
-l       = 10;              % [m]     Longitud geométrica instantánea (carga–carro)
-dl      = 0;               % [m/s]   Derivada temporal de l(t)
-theta_l = 0;               % [rad]   Ángulo de balanceo respecto de la vertical
-omega_l = 0;               % [rad/s] Velocidad angular de balanceo
-
-% --- Izaje: longitud de cable colgante / variable de accionamiento ---
-lh   = 10;                 % [m]   Longitud colgante equivalente del izaje (parte variable)
-dlh  = 0;                  % [m/s] Derivada temporal de lh(t)
-yh   = Yt0 - lh;           % [m]   Posición de izaje: y_h = Yt0 - l_h
-vh   = 0;                  % [m/s] Velocidad de izaje (vh = dyh/dt = -dlh/dt)
-ah   = 0;                  % [m/s^2] Aceleración de izaje
-
-% --- Perfil de obstáculos / apoyo (ambiente) ---
-yc0 = 0;                   % [m] Perfil vertical de obstáculos/apoyo evaluado en x (yc0(x,t))
-% Nota: en el modelo completo es una función yc0(x,t), no un escalar.
-
-% --- Fuerzas principales en las ecuaciones ---
-Fhw = 0;                   % [N] Fuerza de tensión del cable de izaje (solo si cable tenso)
-Fc_x = 0;                  % [N] Fuerza de contacto horizontal (arrastre) si hay apoyo
-Fc_y = 0;                  % [N] Fuerza de contacto vertical (reacción elástica amortiguada)
-Ftw = 0;                   % [N] Fuerza equivalente del cable/accionamiento de carro
-
-% --- Variables del accionamiento de izaje (rotacionales) ---
-omega_hd = 0;              % [rad/s] Velocidad angular del tambor (eje lento) izaje
-theta_hd = 0;              % [rad]   Posición angular del tambor izaje
-omega_hm = 0;              % [rad/s] Velocidad angular del motor izaje (eje rápido)
-theta_hm = 0;              % [rad]   Posición angular del motor izaje
-
-Thd    = 0;                % [N·m] Torque en eje lento (salida reductor)
-Thdl   = 0;                % [N·m] Torque de carga en tambor (Fhw*rhd)
-Thml   = 0;                % [N·m] Torque equivalente de carga referido a eje motor
-Thm    = 0;                % [N·m] Torque real del motor (salida del modulador)
-Thm_ref = 0;               % [N·m] Consigna de torque al drive (Tm*(k*Ts2))
-Thb    = 0;                % [N·m] Torque freno operación izaje
-ThEb   = 0;                % [N·m] Torque freno emergencia izaje
-
-% --- Variables del accionamiento de carro (rotacionales) ---
-omega_td = 0;              % [rad/s] Velocidad angular tambor carro (eje lento)
-theta_td = 0;              % [rad]   Posición angular tambor carro
-omega_tm = 0;              % [rad/s] Velocidad angular motor carro (eje rápido)
-theta_tm = 0;              % [rad]   Posición angular motor carro
-
-Ttd    = 0;                % [N·m] Torque en eje lento carro
-Ttdl   = 0;                % [N·m] Torque de carga en tambor carro (Ftw*rtd)
-Ttml   = 0;                % [N·m] Torque equivalente de carga referido a eje motor
-Ttm    = 0;                % [N·m] Torque real del motor carro
-Ttm_ref = 0;               % [N·m] Consigna de torque al drive (Tm*(k*Ts2))
-Ttb    = 0;                % [N·m] Torque freno operación carro
-
-% --- Variables discretas / modos (booleanos) del modelo híbrido ---
-TLK   = false;             % [bool] Twistlocks: 0=abiertos (vacío), 1=cerrados (con container)
-BRKh  = true;              % [bool] Freno operación izaje: true=energizado/abierto; false=cerrado (NC)
-BRKhE = true;              % [bool] Freno emergencia izaje: true=energizado/abierto; false=cerrado (NC)
-BRKt  = true;              % [bool] Freno operación carro: true=energizado/abierto; false=cerrado (NC)
-
-contact = false;           % [bool] Contacto vertical: 0=suspendido; 1=apoyado
-rope_taut = true;          % [bool] Cable izaje tenso: 1 si l>=lh, 0 si cable flojo (Fhw=0)
+% % --- Estados/variables cinemáticas globales ---
+% xt  = 0;                   % [m]   Posición horizontal del carro (trolley)
+% vt  = 0;                   % [m/s] Velocidad horizontal del carro
+% at  = 0;                   % [m/s^2] Aceleración del carro (derivada de vt)
+% 
+% xl  = 0;                   % [m]   Posición horizontal de la carga (punto material)
+% yl  = Yt0 - 10;            % [m]   Posición vertical de la carga (spreader/base)
+% vlx = 0;                   % [m/s] Velocidad horizontal de la carga
+% vly = 0;                   % [m/s] Velocidad vertical de la carga
+% 
+% % --- Coordenadas del péndulo equivalente (restricción geométrica) ---
+% l       = 10;              % [m]     Longitud geométrica instantánea (carga–carro)
+% dl      = 0;               % [m/s]   Derivada temporal de l(t)
+% theta_l = 0;               % [rad]   Ángulo de balanceo respecto de la vertical
+% omega_l = 0;               % [rad/s] Velocidad angular de balanceo
+% 
+% % --- Izaje: longitud de cable colgante / variable de accionamiento ---
+% lh   = 10;                 % [m]   Longitud colgante equivalente del izaje (parte variable)
+% dlh  = 0;                  % [m/s] Derivada temporal de lh(t)
+% yh   = Yt0 - lh;           % [m]   Posición de izaje: y_h = Yt0 - l_h
+% vh   = 0;                  % [m/s] Velocidad de izaje (vh = dyh/dt = -dlh/dt)
+% ah   = 0;                  % [m/s^2] Aceleración de izaje
+% 
+% % --- Perfil de obstáculos / apoyo (ambiente) ---
+% yc0 = 0;                   % [m] Perfil vertical de obstáculos/apoyo evaluado en x (yc0(x,t))
+% % Nota: en el modelo completo es una función yc0(x,t), no un escalar.
+% 
+% % --- Fuerzas principales en las ecuaciones ---
+% Fhw = 0;                   % [N] Fuerza de tensión del cable de izaje (solo si cable tenso)
+% Fc_x = 0;                  % [N] Fuerza de contacto horizontal (arrastre) si hay apoyo
+% Fc_y = 0;                  % [N] Fuerza de contacto vertical (reacción elástica amortiguada)
+% Ftw = 0;                   % [N] Fuerza equivalente del cable/accionamiento de carro
+% 
+% % --- Variables del accionamiento de izaje (rotacionales) ---
+% omega_hd = 0;              % [rad/s] Velocidad angular del tambor (eje lento) izaje
+% theta_hd = 0;              % [rad]   Posición angular del tambor izaje
+% omega_hm = 0;              % [rad/s] Velocidad angular del motor izaje (eje rápido)
+% theta_hm = 0;              % [rad]   Posición angular del motor izaje
+% 
+% Thd    = 0;                % [N·m] Torque en eje lento (salida reductor)
+% Thdl   = 0;                % [N·m] Torque de carga en tambor (Fhw*rhd)
+% Thml   = 0;                % [N·m] Torque equivalente de carga referido a eje motor
+% Thm    = 0;                % [N·m] Torque real del motor (salida del modulador)
+% Thm_ref = 0;               % [N·m] Consigna de torque al drive (Tm*(k*Ts2))
+% Thb    = 0;                % [N·m] Torque freno operación izaje
+% ThEb   = 0;                % [N·m] Torque freno emergencia izaje
+% 
+% % --- Variables del accionamiento de carro (rotacionales) ---
+% omega_td = 0;              % [rad/s] Velocidad angular tambor carro (eje lento)
+% theta_td = 0;              % [rad]   Posición angular tambor carro
+% omega_tm = 0;              % [rad/s] Velocidad angular motor carro (eje rápido)
+% theta_tm = 0;              % [rad]   Posición angular motor carro
+% 
+% Ttd    = 0;                % [N·m] Torque en eje lento carro
+% Ttdl   = 0;                % [N·m] Torque de carga en tambor carro (Ftw*rtd)
+% Ttml   = 0;                % [N·m] Torque equivalente de carga referido a eje motor
+% Ttm    = 0;                % [N·m] Torque real del motor carro
+% Ttm_ref = 0;               % [N·m] Consigna de torque al drive (Tm*(k*Ts2))
+% Ttb    = 0;                % [N·m] Torque freno operación carro
+% 
+% % --- Variables discretas / modos (booleanos) del modelo híbrido ---
+% TLK   = false;             % [bool] Twistlocks: 0=abiertos (vacío), 1=cerrados (con container)
+% BRKh  = true;              % [bool] Freno operación izaje: true=energizado/abierto; false=cerrado (NC)
+% BRKhE = true;              % [bool] Freno emergencia izaje: true=energizado/abierto; false=cerrado (NC)
+% BRKt  = true;              % [bool] Freno operación carro: true=energizado/abierto; false=cerrado (NC)
+% 
+% contact = false;           % [bool] Contacto vertical: 0=suspendido; 1=apoyado
+% rope_taut = true;          % [bool] Cable izaje tenso: 1 si l>=lh, 0 si cable flojo (Fhw=0)
 
 %% ============================================================
 % FIN

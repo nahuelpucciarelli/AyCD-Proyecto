@@ -69,30 +69,52 @@ Para el modelado dinámico de los movimientos de la grúa, se consideran las sig
 \subsubsection{Dinámica del motor y freno (eje rápido)}
 El motor genera torque, el freno se opone y la inercia resiste el cambio de velocidad. Esto se ve reflejado en la ecuación dinámica fundamental del eje del motor:
 \begin{equation}
-    J_{tm+tb} \, \frac{d\omega_{tm}}{dt} = T_{tm} + T_{tb} - b_{tm} \, \omega_{tm} - \frac{T_{td}}{i_t}
+    J_{tm+tb} \, \frac{d\omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}\bigl(t, BRK_t\bigr) - b_{tm} \, \omega_{tm}(t) - \frac{T_{td}(t)}{i_t}
 \end{equation}
-donde $T_{tm}$ es el torque eléctico, $T_{tb}$ el del freno, y $\frac{T_{td}}{i_t}$ es el torque de carga reflejado desde el tambor. 
+donde $T_{tm}(t)$ es el torque eléctrico, $T_{tb}(t, BRK_t)$ el del freno según su modo, y $\frac{T_{td}(t)}{i_t}$ es el torque de carga reflejado desde el tambor. 
 
 \subsubsection{Transmisión y tambor (eje lento)}
 La caja reductora reduce la velocidad y aumenta el torque. El tambor convierte movimiento rotacional a lineal.
 \begin{itemize}
-    \item Relación de transmisión: $\omega_{td} = \frac{\omega_{tm}}{i_t}$
-    \item Conversión a lineal (en el tambor): $v_{dt} = r_{td} \, \omega_{td}$. Nota: $v_dt$ es la \textit{velocidad lineal del cable en el tambor}, no la del carro.
+    \item Relación de transmisión: $\omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t}$
+    \item Conversión a lineal (en el tambor): $v_{td}(t) = r_{td} \, \omega_{td}(t)$. Nota: $v_{td}$ es la \textit{velocidad lineal del cable en el tambor}, no la del carro.
 \end{itemize}
 
 \subsubsection{Elasticidad del cable (acoplamiento)}
 El cable no es rígido, actúa como resorte ($K_{tw}$) y amortiguador ($b_{tw}$) entre la posicion demandada por el tambor ($x_{td}$) y la posición real del carro ($x_t$). La fuerza de tracción del cable es:
 \begin{equation}
-    F_{tw} = K_{tw} \, (x_{td} - x_t) + b_{tw} \, (v_{td} - v_t)
+    F_{tw}(t) = K_{tw} \, \bigl(x_{td}(t) - x_t(t)\bigr) + b_{tw} \, \bigl(v_{td}(t) - v_t(t)\bigr)
 \end{equation}
 
 \subsubsection{Dinámica del carro (masa traslacional)}
 Finalmente, se aplica la segunda ley de Newton al carro:
 \begin{equation}
-    M_t \, \frac{dv_t}{dt} = F_{tw} - b_t \, v_t + F_{coupling}
+    M_t \, \frac{dv_t(t)}{dt} = F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t)
 \end{equation}
-donde $F_{coupling} = 2\,F_{hw} \, \sin\theta_l$.
+donde $F_{coupling}(t) = 2\,F_{hw}\bigl(t, l(t) \ge l_h(t)\bigr) \, \sin\theta_l(t)$.
 
 \subsection{Accionamiento y traslación del Izaje}
+
+\subsubsection{Cinemática y fuerza de izaje}
+La longitud colgante variable define la posición de izaje y su velocidad:
+\begin{equation}
+    y_h(t) = Y_{t0} - l_h(t), \qquad v_h(t) = \frac{dy_h(t)}{dt} = -\frac{dl_h(t)}{dt}
+\end{equation}
+El tambor convierte movimiento angular a lineal y refleja la fuerza de cable:
+\begin{equation}
+    v_h(t) = r_{hd} \, \omega_{hd}(t), \qquad F_{hw}\bigl(t, l(t) \ge l_h(t)\bigr) \, r_{hd} = T_{hdl}(t)
+\end{equation}
+
+\subsubsection{Dinámica del tambor, frenos y motor de izaje}
+El eje lento (tambor + freno de emergencia) y el rápido (motor + freno de operación) quedan:
+\begin{equation}
+    J_{hd+hEb} \, \frac{d\omega_{hd}(t)}{dt} = T_{hd}(t) + T_{hEb}\bigl(t, BRK_{hE}\bigr) - b_{hd} \, \omega_{hd}(t) - T_{hdl}(t)
+\end{equation}
+\begin{equation}
+    \omega_{hd}(t) \, i_h = \omega_{hm}(t), \qquad T_{hd}(t) = i_h \, T_{hml}(t)
+\end{equation}
+\begin{equation}
+    J_{hm+hb} \, \frac{d\omega_{hm}(t)}{dt} = T_{hm}(t) + T_{hb}\bigl(t, BRK_h\bigr) - b_{hm} \, \omega_{hm}(t) - T_{hml}(t)
+\end{equation}
 
 \end{document}
