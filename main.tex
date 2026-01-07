@@ -4,16 +4,14 @@
 \usepackage{parskip,mlmodern,charter}                                     % Espaciado entre párrafos y fuente
 \usepackage{mathtools,amssymb}                                   % Matemáticas avanzadas
 \usepackage[output-decimal-marker={,}]{siunitx}                  % Unidades SI
-\usepackage{graphicx,subcaption,booktabs,multirow}               % Imágenes y tablas
+\usepackage{graphicx,subcaption,booktabs,multirow,float}         % Imágenes y tablas
 \usepackage{algorithmicx}                                        % Pseudocódigo
 \usepackage{xcolor}                                              % Definición de colores
 \usepackage{fancyhdr,lastpage}                                   % Encabezados y pies de página
 \usepackage[numbers,square,sort]{natbib}                         % Bibliografía con estilo numérico
 \usepackage[colorlinks=true, linkcolor=black, urlcolor=magenta, 
             citecolor=orange, anchorcolor=blue]{hyperref}        % Hipervínculos
-\usepackage{microtype,cleveref}                                  % Mejoras tipográficas y referencias inteligentes
-
-% cleverref: En vez de escribir la Figura \ref{fig:motor}, escribes la \cref{fig:motor}
+\usepackage{microtype}                                           % Mejoras tipográficas
 
 \graphicspath{{./Imágenes/}} % Carpeta donde se encuentran las imágenes
 
@@ -48,12 +46,19 @@ El sistema híbrido de control y protección incluye 3 niveles jerárquicos:
 
 \newpage
 \tableofcontents
-\newpage
 
+\newpage
 \section{Desarrollo y modelado}
 Este proyecto considera el control de accionamientos eléctricos y operación semi-automática coordinada de los dos movimientos principales continuos y simultáneos de la grúa en un plano vertical (2D): traslación horizontal del carro (Trolley) sobre las vigas principal y móvil (paralelo al eje $x$); e Izaje/descenso, o traslación vertical, de la carga (Hoist) bajo la posición del carro (paralelo al eje $y$).
 
 Ambos movimientos son impulsados mediante cables de acero (wireropes) desde mecanismos rotativos con tambores, cajas de engranajes, frenos mecánicos y motores eléctricos, ubicados en una Casa de Máquinas (Machinery House) fija, con sus correspondientes accionamientos electrónicos de velocidad variable; dichos movimientos tienen \textit{restricciones de operación}: posiciones límite de recorrido, velocidades máximas y aceleraciones máximas. Están \textit{acoplados entre sí por la carga} (headblock/spreader con o sin container), que se balancea suspendida del carro que la traslada mediante los cables de izaje.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{img/model_simple.png}
+    \caption{Diagrama básico del modelo.}
+    \label{fig:basic_model}
+\end{figure}
 
 \subsubsection*{Hipótesis simplificativas}
 Para el modelado dinámico de los movimientos de la grúa, se consideran las siguientes hipótesis simplificativas:
@@ -65,14 +70,19 @@ Para el modelado dinámico de los movimientos de la grúa, se consideran las sig
     \item \textit{Efectos externos:} Solo se consideran la gravedad y las fuerzas de contacto vertical (modelo elástico lineal). Se desprecia la resistencia aerodinámica frontal al viento de la carga y del carro en movimiento.
 \end{itemize}
 
-\subsection{Subsistema del Carro}
-
+\subsection{Subsistema del Carro (Trolley)}
 El sistema de traslación del carro se modela como un sistema electromecánico de dos masas (inercia rotacional del accionamiento y masa traslacional del carro) acopladas mediante un elemento flexible (cable de acero). A continuación, se presentan las ecuaciones fundamentales y su desarrollo para la simulación.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{img/trolley.png}
+    \caption{Diagrama del subsistema del carro (tambor-motor) (Trolley).}
+    \label{fig:trolley}
+\end{figure}
 
-\subsubsection{Dinámica del Carro (Masa Traslacional)}
+\subsubsection*{Dinámica del Carro (Masa Traslacional)}
 Aplicando la segunda ley de Newton al movimiento horizontal del carro, se tiene:
 \begin{equation} \label{eq:carro_newton}
-    M_t \, \frac{dv_t(t)}{dt} = F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t)
+    M_t \, \frac{d \, v_t(t)}{dt} = F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t)
 \end{equation}
 Donde:
 \begin{itemize}
@@ -82,125 +92,270 @@ Donde:
     \item $F_{coupling}(t) = 2 F_{hw} \sin\theta_l$: Fuerza horizontal perturbadora debida al balanceo de la carga.
 \end{itemize}
 
-\subsubsection{Acoplamiento Elástico (Cable de Acero)}
+\subsubsection*{Acoplamiento Elástico (Cable de Acero)}
 El cable transmite la fuerza entre el tambor y el carro. Se modela como un resorte con rigidez $K_{tw}$ y amortiguación $b_{tw}$:
 \begin{equation} \label{eq:fuerza_cable}
     F_{tw}(t) = K_{tw} \, (x_{td}(t) - x_t(t)) + b_{tw} \, (v_{td}(t) - v_t(t))
 \end{equation}
 Donde $x_{td}$ y $v_{td}$ son la posición y velocidad lineal equivalente del cable en la superficie del tambor.
 
-\subsubsection{Dinámica del Tambor (Eje Lento)}
+\subsubsection*{Dinámica del Tambor (Eje Lento)}
 La dinámica rotacional del eje de salida (tambor) está dada por:
 \begin{equation} \label{eq:eje_lento}
-    J_{td} \, \frac{d\omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \, \omega_{td}(t) - T_{tdl}(t)
+    J_{td} \, \frac{d \, \omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \, \omega_{td}(t) - T_{tdl}(t)
 \end{equation}
 Donde $T_{tdl}(t) = F_{tw}(t) \, r_{td}$ es el torque de carga generado por la tensión del cable.
 
-\subsubsection{Dinámica del Motor y Freno (Eje Rápido)}
+\subsubsection*{Dinámica del Motor y Freno (Eje Rápido)}
 La dinámica del eje de entrada (motor) se define como:
 \begin{equation} \label{eq:eje_rapido}
-    J_{tm+tb} \, \frac{d\omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \, \omega_{tm}(t) - T_{tml}(t)
+    J_{tm+tb} \, \frac{d \, \omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \, \omega_{tm}(t) - T_{tml}(t)
 \end{equation}
 Donde $T_{tml}$ es el torque resistente que la caja reductora demanda al motor.
 
-\subsection{Deducción del Modelo Equivalente Referido al Motor}
-
-Para la simulación y el diseño de control, es necesario unificar las ecuaciones (\ref{eq:eje_lento}) y (\ref{eq:eje_rapido}) en una sola ecuación diferencial referida al eje del motor.
-
-\subsubsection{Relaciones Cinemáticas y de Transmisión}
-La caja reductora vincula el eje rápido y el lento mediante la relación de transmisión $i_t$:
-\begin{align}
-    \text{Velocidades:} & \quad \omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t} \implies \frac{d\omega_{td}}{dt} = \frac{1}{i_t}\frac{d\omega_{tm}}{dt} \label{eq:rel_vel} \\
-    \text{Torques:} & \quad T_{td}(t) = T_{tml}(t) \, i_t \label{eq:rel_torque}
-\end{align}
-
-\subsubsection{Reflexión de Inercia y Fricción}
-Sustituyendo las relaciones (\ref{eq:rel_vel}) y (\ref{eq:rel_torque}) en la ecuación del eje lento (\ref{eq:eje_lento}):
-
-\begin{equation*}
-    J_{td} \, \left( \frac{1}{i_t} \frac{d\omega_{tm}}{dt} \right) = (T_{tml} \, i_t) - b_{td} \, \left( \frac{\omega_{tm}}{i_t} \right) - T_{tdl}
-\end{equation*}
-
-Para despejar el torque de carga en el eje motor ($T_{tml}$), dividimos toda la ecuación por $i_t$:
-
-\begin{equation}
-    \frac{J_{td}}{i_t^2}\, \frac{d\omega_{tm}}{dt} = T_{tml} - \frac{b_{td}}{i_t^2} \, \omega_{tm} - \frac{T_{tdl}}{i_t}
-\end{equation}
-
-Despejando $T_{tml}$ y sustituyéndolo en la ecuación del eje rápido (\ref{eq:eje_rapido}), obtenemos la ecuación unificada:
-
-\begin{equation}
-    \left( J_{tm+tb} + \frac{J_{td}}{i_t^2} \right) \frac{d\omega_{tm}}{dt} = T_{tm} + T_{tb} - \left( b_{tm} + \frac{b_{td}}{i_t^2} \right) \omega_{tm} - \frac{T_{tdl}}{i_t}
-\end{equation}
-
-Se definen los parámetros equivalentes totales:
-\begin{equation} \label{eq:parametros_eq}
-    J_{eq} = J_{tm+tb} + \frac{J_{td}}{i_t^2} \quad ; \quad b_{eq} = b_{tm} + \frac{b_{td}}{i_t^2}
-\end{equation}
-
-\subsubsection{Modelo del Freno Mecánico de Operación}
-El sistema dispone de un freno mecánico en el eje rápido del motor, configurado como Normal Cerrado (NC) por seguridad. El torque de frenado $T_{tb}$ depende del estado lógico de la señal de control $BRK_t$ (0: Desenergizado/Cerrado, 1: Energizado/Abierto).
+\subsubsection*{Modelo del Freno Mecánico de Operación}
+El sistema dispone de un freno mecánico en el eje rápido del motor, configurado como Normal Cerrado (NC) por seguridad. El torque de frenado $T_{tb}$ depende del estado lógico de la señal de control \textcolor{cyan}{$BRK_t$} (0: Desenergizado/Cerrado, 1: Energizado/Abierto).
 
 Para evitar discontinuidades numéricas abruptas durante la simulación (chattering) al momento de la detención, se modela la fricción del freno cerrado utilizando una función tangente hiperbólica escalada, tal como sugiere la especificación técnica:
-
 \begin{equation} \label{eq:brake_model}
     T_{tb}(t) = 
     \begin{cases} 
         0 & \text{si } BRK_t = 1 \text{ (Abierto/Energizado)} \\
-        -T_{tb\_Max} \cdot \tanh(b_{tb} \cdot \omega_{tm}(t)) & \text{si } BRK_t = 0 \text{ (Cerrado/Frenado)}
+        -T_{tb\_Max} \, \tanh(b_{tb} \, \omega_{tm}(t)) & \text{si } BRK_t = 0 \text{ (Cerrado/Frenado)}
     \end{cases}
 \end{equation}
 
-Donde $T_{tb\_Max}$ es el torque máximo de fricción estática del freno y $b_{tb}$ es un coeficiente de pendiente elevada que aproxima el comportamiento de la fricción de Coulomb/Viscosa cerca de la velocidad cero.
+Donde $T_{tb\_Max}$ es el torque máximo de fricción estática del freno y $b_{tb}$ es un coeficiente de pendiente elevada que aproxima el comportamiento de la fricción viscosa.
+
+\subsubsection*{Modelo Equivalente Referido al Motor}
+Para la simulación y el diseño de control, es necesario unificar las ecuaciones (\ref{eq:eje_lento}) y (\ref{eq:eje_rapido}) en una sola ecuación diferencial referida al eje del motor.
+
+La caja reductora vincula el eje rápido y el lento mediante la relación de transmisión $i_t$:
+\begin{align}
+    \text{Velocidades:} & \quad \omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t} \implies \frac{d \, \omega_{td}}{dt} = \frac{1}{i_t}\frac{d\omega_{tm}}{dt} \label{eq:rel_vel} \\
+    \text{Torques:} & \quad T_{td}(t) = T_{tml}(t) \, i_t \label{eq:rel_torque}
+\end{align}
+
+Sustituyendo las relaciones (\ref{eq:rel_vel}) y (\ref{eq:rel_torque}) en la ecuación del eje lento (\ref{eq:eje_lento}):
+\begin{equation*}
+    J_{td} \, \left( \frac{1}{i_t} \frac{d \, \omega_{tm}}{dt} \right) = (T_{tml} \, i_t) - b_{td} \, \left( \frac{\omega_{tm}}{i_t} \right) - T_{tdl}
+\end{equation*}
+
+Para despejar el torque de carga en el eje motor ($T_{tml}$), dividimos toda la ecuación por $i_t$:
+\begin{equation}
+    \frac{J_{td}}{i_t^2}\, \frac{d \, \omega_{tm}}{dt} = T_{tml} - \frac{b_{td}}{i_t^2} \, \omega_{tm} - \frac{T_{tdl}}{i_t}
+\end{equation}
+
+Despejando $T_{tml}$ y sustituyéndolo en la ecuación del eje rápido (\ref{eq:eje_rapido}), obtenemos la ecuación unificada:
+\begin{equation}
+    \left( J_{tm+tb} + \frac{J_{td}}{i_t^2} \right) \frac{d \, \omega_{tm}}{dt} = T_{tm} + T_{tb} - \left( b_{tm} + \frac{b_{td}}{i_t^2} \right) \omega_{tm} - \frac{T_{tdl}}{i_t}
+\end{equation}
+
+Se definen los parámetros equivalentes totales:
+\begin{equation} \label{eq:parametros_eq}
+    J_{eq,t} = J_{tm+tb} + \frac{J_{td}}{i_t^2} \quad ; \quad 
+    b_{eq,t} = b_{tm} + \frac{b_{td}}{i_t^2}
+\end{equation}
 
 \subsubsection{Modelo de Espacio de Estados para Simulación}
-
-Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques integradores en Simulink.
-
-\begin{equation}
-    \frac{d\omega_{tm}(t)}{dt} = \frac{1}{J_{eq}} \left[ T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{eq} \cdot \omega_{tm}(t) - \frac{r_{td}}{i_t} F_{tw}(t) \right]
-\end{equation}
-
-Variables auxiliares para la integración:
+Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques en Simulink.
 \begin{itemize}
-    \item Velocidad lineal tambor: $v_{td}(t) = \frac{r_{td}}{i_t} \omega_{tm}(t)$
-    \item Posición lineal tambor: $x_{td}(t) = \int v_{td}(t) \, dt$
+    \item \textbf{Accionamiento del carro:}
+    \begin{equation}
+        \frac{d\,\omega_{tm}(t)}{dt}
+        = \frac{1}{J_{eq,t}}
+        \left[
+            T_{tm}(t)
+            + T_{tb}(t,\textcolor{cyan}{BRK_t})
+            - b_{eq,t}\,\omega_{tm}(t)
+            - \frac{r_{td}}{i_t}\,F_{tw}(t)
+        \right]
+    \end{equation}
+
+    \item \textbf{Dinámica del carro:}
+    \begin{equation}
+        \frac{d\,v_t(t)}{dt}
+        = \frac{1}{M_t}
+        \left[
+            F_{tw}(t)
+            - b_t\,v_t(t)
+            + F_{coupling}(t)
+        \right]
+    \end{equation}
+
+    \item \textbf{Posición del carro:}
+    \begin{equation}
+        \frac{d\,x_t(t)}{dt} = v_t(t)
+    \end{equation}
+
+    \item \textbf{Fuerza del cable del carro:}
+    \begin{equation}
+        F_{tw}(t)
+        = K_{tw}\bigl(x_{td}(t) - x_t(t)\bigr)
+        + b_{tw}\bigl(v_{td}(t) - v_t(t)\bigr)
+    \end{equation}
+\end{itemize}
+        
+\textbf{Variables auxiliares:}
+\begin{itemize}
+    \item Velocidad lineal del tambor: $v_{td}(t) = \frac{r_{td}}{i_t} \, \omega_{tm}(t)$
+    \item Posición lineal del tambor: $x_{td}(t) = \int v_{td}(t) \, dt$
 \end{itemize}
 
+\subsection{Subsistema de Izaje (Hoist)}
+El sistema de izaje controla la elevación de la carga mediante un mecanismo de tambor accionado por motor eléctrico, con un sistema de cableado (reeving) que introduce una relación de transmisión mecánica adicional.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{img/hoist.png}
+    \caption{Diagrama del subsistema de izaje (tambores-motores) (Hoist).}
+    \label{fig:hoist}
+\end{figure}
+
+\subsubsection*{Dinámica de la Carga Suspendida (Eje Vertical)}
+La masa suspendida $m_l$ (que varía según si el spreader tiene contenedor o no) está sometida a la gravedad y a la tensión de los cables. Debido al arreglo de poleas (relación 2:1), la fuerza efectiva hacia arriba es el doble de la tensión del cable $F_{hw}$.
+
+\begin{equation} \label{eq:carga_izaje}
+    m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{ly}(t)}{dt} = 2 F_{hw}(t) \, \cos(\theta_l(t)) - m_l(\textcolor{cyan}{TLK}) \, g + F_{cy}(t)
+\end{equation}
+Donde:
+\begin{itemize}
+    \item $m_l(\textcolor{cyan}{TLK})$: Masa total, spreader + contenedor (si Twistlocks = On).
+    \item $F_{hw}(t)$: Tensión en el cable de acero (cable único equivalente).
+    \item $\theta_l$: Ángulo de balanceo (si $\theta \approx 0 \implies \cos \approx 1$).
+    \item $F_{cy}(t)$: Fuerza de contacto/reacción vertical si la carga toca el suelo (0 si está suspendida).
+\end{itemize}
+
+\subsubsection*{Acoplamiento del Cable con Rigidez Variable}
+El cable de izaje se modela como un resorte-amortiguador. A diferencia del carro, su longitud desenrollada $l_h(t)$ cambia drásticamente, lo que afecta su rigidez $K_{hw}$.
+
+Tanto la rigidez unitaria $k_{hwu}$ como el amortiguamiento unitario $b_{hwu}$ escalan con la longitud total del cable bajo tensión ($2 l_h(t) + L_{h0}$):
 \begin{equation}
-    F_{tw}(t) = K_{tw} (x_{td}(t) - x_t(t)) + b_{tw} (v_{td}(t) - v_t(t))
+    K_{hw}(l_h) = \frac{k_{hwu}}{2 l_h(t) + L_{h0}} \quad ; \quad b_{hw}(l_h) = \frac{b_{hwu}}{2 l_h(t) + L_{h0}}
 \end{equation}
 
-\begin{equation}
-    \frac{dv_t(t)}{dt} = \frac{1}{M_t} \left[ F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t) \right]
+La fuerza de tensión $F_{hw}$ se calcula solo si el cable está tenso ($l \ge l_h$):
+\begin{equation} \label{eq:tension_izaje}
+    F_{hw}(t) = 
+    \begin{cases} 
+        K_{hw}(l_h) \, \Delta L + b_{hw}(l_h) \, \Delta V & \text{si } l(t) \ge l_h(t) \text{ (Tenso)} \\
+        0 & \text{si } l(t) < l_h(t) \text{ (Flojo/Slack)}
+    \end{cases}
 \end{equation}
+Donde la elongación es $\Delta L = 2(l(t) - l_h(t))$ debido al reeving.
+
+\subsubsection*{Dinámica del Accionamiento}
+El sistema posee dos frenos y una transmisión.
+\begin{itemize}
+    \item \textbf{Eje Lento (Tambor):} Posee el Freno de Emergencia ($T_{hEb}$).
+    \begin{equation}
+        J_{hd+hEb} \, \frac{d \, \omega_{hd}}{dt} = T_{hd} + T_{hEb} - b_{hd} \, \omega_{hd} - T_{hdl}
+    \end{equation}
+    \item \textbf{Eje Rápido (Motor):} Posee el Freno de Operación ($T_{hb}$).
+    \begin{equation}
+        J_{hm+hb} \, \frac{d \, \omega_{hm}}{dt} = T_{hm} + T_{hb} - b_{hm} \, \omega_{hm} - T_{hml}
+    \end{equation}
+\end{itemize}
+
+Relación cinemática del Reeving (2:1) y Tambor:
 \begin{equation}
-    \frac{dx_t(t)}{dt} = v_t(t)
+    v_h(t) = \frac{r_{hd} \, \omega_{hd}(t)}{2} = -\frac{d \, l_h(t)}{dt}
+\end{equation}
+El factor 2 divide la velocidad tangencial del tambor porque es un aparejo móvil.
+
+\subsubsection*{Modelo de los Frenos Mecánicos de Operación y Emergencia}
+A diferencia del carro, el sistema de izaje cuenta con dos sistemas de frenado independientes para garantizar la seguridad de la carga suspendida. Ambos operan bajo lógica "Normal Cerrado" (NC).
+\begin{itemize}
+    \item \textbf{Freno de Operación (Eje Rápido):} Ubicado en el eje del motor, actúa durante las paradas normales y el mantenimiento de posición (parking).
+    \begin{equation} \label{eq:brake_hoist_op}
+        T_{hb}(t) = 
+        \begin{cases} 
+            0 & \text{si } BRK_h = 1 \text{ (Energizado/Abierto)} \\
+            -T_{hb\_Max} \, \tanh(b_{hb} \, \omega_{hm}(t)) & \text{si } BRK_h = 0 \text{ (Desenergizado/Cerrado)}
+        \end{cases}
+    \end{equation}
+    \item \textbf{Freno de Emergencia (Eje Lento):} Ubicado directamente sobre el tambor, actúa solo ante fallas críticas (Nivel 0 de Protección) o parada de emergencia.
+    \begin{equation} \label{eq:brake_hoist_emg}
+        T_{hEb}(t) = 
+        \begin{cases} 
+            0 & \text{si } BRK_{hE} = 1 \text{ (Energizado/Abierto)} \\
+            -T_{hEb\_Max} \, \tanh(b_{hEb} \, \omega_{hd}(t)) & \text{si } BRK_{hE} = 0 \text{ (Desenergizado/Cerrado)}
+        \end{cases}
+    \end{equation}
+\end{itemize}
+
+\subsubsection*{Modelo Equivalente Referido al Motor}
+Dado que el Freno de Emergencia está en el eje lento, su torque también se divide por la relación de transmisión $i_h$ al reflejarlo.
+\begin{equation}
+    J_{eq,h} = J_{hm+hb} + \frac{J_{hd+hEb}}{i_h^2}  \quad ; \quad
+    b_{eq,h} = b_{hm} + \frac{b_{hd}}{i_h^2}  \quad ; \quad
+    T_{hEb,ref} = \frac{T_{hEb}}{i_h}
 \end{equation}
 
-\subsection{Accionamiento y traslación del Izaje}
+\subsubsection{Modelo de Espacio de Estados para Simulación}
+Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques en Simulink.
+\begin{itemize}
+    \item \textbf{Accionamiento del izaje:}
+    \begin{equation}
+        \frac{d\,\omega_{hm}(t)}{dt}
+        = \frac{1}{J_{eq,h}}
+        \left[
+            T_{hm}(t)
+            + T_{hb}(t,\textcolor{cyan}{BRK_h})
+            + \frac{T_{hEb}(t,\textcolor{cyan}{BRK_{hE}})}{i_h}
+            - b_{eq,h}\,\omega_{hm}(t)
+            - \frac{F_{hw}(t)\,r_{hd}}{i_h}
+        \right]
+    \end{equation}
+    donde $T_{hdl} = F_{hw}\,r_{hd}$ es el torque ejercido por el cable sobre el tambor.
 
-\subsubsection{Cinemática y fuerza de izaje}
-La longitud colgante variable define la posición de izaje y su velocidad:
-\begin{equation}
-    y_h(t) = Y_{t0} - l_h(t), \qquad v_h(t) = \frac{dy_h(t)}{dt} = -\frac{dl_h(t)}{dt}
-\end{equation}
-El tambor convierte movimiento angular a lineal y refleja la fuerza de cable:
-\begin{equation}
-    v_h(t) = r_{hd} \, \omega_{hd}(t), \qquad F_{hw}\bigl(t, l(t) \ge l_h(t)\bigr) \, r_{hd} = T_{hdl}(t)
-\end{equation}
+    \item \textbf{Dinámica de la carga:}
+    \begin{equation}
+        \frac{d\,v_{ly}(t)}{dt}
+        = \frac{1}{m_l(\textcolor{cyan}{TLK})}
+        \left[
+            2\,F_{hw}(t)\cos\theta_l
+            - m_l(\textcolor{cyan}{TLK})\,g
+            + F_{cy}(t)
+        \right]
+    \end{equation}
 
-\subsubsection{Dinámica del tambor, frenos y motor de izaje}
-El eje lento (tambor + freno de emergencia) y el rápido (motor + freno de operación) quedan:
-\begin{equation}
-    J_{hd+hEb} \, \frac{d\omega_{hd}(t)}{dt} = T_{hd}(t) + T_{hEb}\bigl(t, BRK_{hE}\bigr) - b_{hd} \, \omega_{hd}(t) - T_{hdl}(t)
-\end{equation}
-\begin{equation}
-    \omega_{hd}(t) \, i_h = \omega_{hm}(t), \qquad T_{hd}(t) = i_h \, T_{hml}(t)
-\end{equation}
-\begin{equation}
-    J_{hm+hb} \, \frac{d\omega_{hm}(t)}{dt} = T_{hm}(t) + T_{hb}\bigl(t, BRK_h\bigr) - b_{hm} \, \omega_{hm}(t) - T_{hml}(t)
-\end{equation}
+    \item \textbf{Posición de la carga:}
+    \begin{equation}
+        \frac{d\,y_l(t)}{dt} = v_{ly}(t)
+    \end{equation}
+
+    \item \textbf{Fuerza del cable de izaje:}
+    \begin{equation}
+        F_{hw}(t) =
+        \begin{cases}
+            2 K_{hw}(l_h) \, \left( l(t) - l_h(t) \right)
+            + 2 b_{hw}(l_h) \, \left( \frac{d \, l(t)}{dt} - \frac{d \, l_h(t)}{dt} \right),
+            & \text{si } l \ge l_h \text{ (Tenso)} \\[6pt]
+            0, & \text{si } l < l_h \text{ (Flojo)}
+        \end{cases}
+    \end{equation}
+    Nota: Se utiliza $\frac{dl}{dt}$ en lugar de $v_{ly}$ para considerar el estiramiento inducido por el balanceo ($\theta_l \neq 0$).
+
+    \item \textbf{Longitud de cable desplegado:}
+    \begin{equation}
+        \frac{d\,l_h(t)}{dt}
+        = -\,\frac{r_{hd}}{2\,i_h}\,\omega_{hm}(t)
+    \end{equation}
+    El signo negativo indica que una velocidad positiva del motor
+    ($\omega_{hm} > 0$) enrolla el cable y reduce la longitud $l_h$.
+\end{itemize}
+
+
+\textbf{Variables auxiliares:}
+\begin{itemize}
+    \item Rigidez variable: $K_{hw}(l_h) = \frac{k_{hwu}}{2 l_h(t) + L_{h0}}$
+    \item Amortiguamiento variable: $b_{hw}(l_h) = \frac{b_{hwu}}{2 l_h(t) + L_{h0}}$
+    \item Longitud geométrica actual (Pitágoras): $l(t) = \sqrt{(x_l - x_t)^2 + (Y_{t0} - y_l)^2} \quad$ ($Y_{t0}$ es la altura fija de poleas de izaje en el carro)
+    \item Velocidad de cambio de longitud (para el amortiguamiento):
+    \[ \frac{dl(t)}{dt} = \frac{(x_l - x_t)(v_{lx} - v_t) - (Y_{t0} - y_l)v_{ly}}{l(t)} \]
+    \item Componentes trigonométricas (para descomposición de fuerzas):
+    \[ \sin\theta_l = \frac{x_l - x_t}{l(t)} \quad ; \quad \cos\theta_l = \frac{Y_{t0} - y_l}{l(t)} \]
+\end{itemize}
 
 
 \end{document}
