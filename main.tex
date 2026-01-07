@@ -65,7 +65,7 @@ Para el modelado dinámico de los movimientos de la grúa, se consideran las sig
     \item \textit{Efectos externos:} Solo se consideran la gravedad y las fuerzas de contacto vertical (modelo elástico lineal). Se desprecia la resistencia aerodinámica frontal al viento de la carga y del carro en movimiento.
 \end{itemize}
 
-\subsection{Accionamiento del Carro}
+\subsection{Subsistema del Carro}
 
 El sistema de traslación del carro se modela como un sistema electromecánico de dos masas (inercia rotacional del accionamiento y masa traslacional del carro) acopladas mediante un elemento flexible (cable de acero). A continuación, se presentan las ecuaciones fundamentales y su desarrollo para la simulación.
 
@@ -79,11 +79,11 @@ Donde:
     \item $M_t$: Masa del carro.
     \item $F_{tw}(t)$: Fuerza de tracción ejercida por el cable.
     \item $b_t$: Coeficiente de fricción viscosa del carro sobre los rieles.
-    \item $F_{coupling}(t) = 2 F_{hw} \sin(\theta_l)$: Fuerza horizontal perturbadora debida al balanceo de la carga.
+    \item $F_{coupling}(t) = 2 F_{hw} \sin\theta_l$: Fuerza horizontal perturbadora debida al balanceo de la carga.
 \end{itemize}
 
 \subsubsection{Acoplamiento Elástico (Cable de Acero)}
-El cable transmite la fuerza entre el tambor y el carro. Se modela como un resorte con rigidez $K_{tw}$ y un amortiguador $b_{tw}$:
+El cable transmite la fuerza entre el tambor y el carro. Se modela como un resorte con rigidez $K_{tw}$ y amortiguación $b_{tw}$:
 \begin{equation} \label{eq:fuerza_cable}
     F_{tw}(t) = K_{tw} \, (x_{td}(t) - x_t(t)) + b_{tw} \, (v_{td}(t) - v_t(t))
 \end{equation}
