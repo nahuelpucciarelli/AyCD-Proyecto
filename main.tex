@@ -13,7 +13,7 @@
             citecolor=orange, anchorcolor=blue]{hyperref}        % Hipervínculos
 \usepackage{microtype}                                           % Mejoras tipográficas
 
-\graphicspath{{./Imágenes/}} % Carpeta donde se encuentran las imágenes
+\graphicspath{{Imagenes/}}
 
 \title{\textbf{Control de Accionamientos y Automatización de Grúa
 Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}}
@@ -56,7 +56,7 @@ Ambos movimientos son impulsados mediante cables de acero (wireropes) desde meca
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.7\textwidth]{img/model_simple.png}
+    \includegraphics[width=0.7\textwidth]{model_simple.png}
     \caption{Diagrama básico del modelo.}
     \label{fig:basic_model}
 \end{figure}
@@ -75,7 +75,7 @@ Para el modelado dinámico de los movimientos de la grúa, se consideran las sig
 El sistema de traslación del carro se modela como un sistema electromecánico de dos masas (inercia rotacional del accionamiento y masa traslacional del carro) acopladas mediante un elemento flexible (cable de acero). A continuación, se presentan las ecuaciones fundamentales y su desarrollo para la simulación.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{img/trolley.png}
+    \includegraphics[width=1\textwidth]{trolley.png}
     \caption{Diagrama del subsistema del carro (tambor-motor) (Trolley).}
     \label{fig:trolley}
 \end{figure}
@@ -207,7 +207,7 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
 El sistema de izaje controla la elevación de la carga mediante un mecanismo de tambor accionado por motor eléctrico, con un sistema de cableado (reeving) que introduce una relación de transmisión mecánica adicional.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{img/hoist.png}
+    \includegraphics[width=1\textwidth]{hoist.png}
     \caption{Diagrama del subsistema de izaje (tambores-motores) (Hoist).}
     \label{fig:hoist}
 \end{figure}
