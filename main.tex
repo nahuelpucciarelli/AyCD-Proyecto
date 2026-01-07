@@ -80,7 +80,7 @@ El sistema de traslación del carro se modela como un sistema electromecánico d
     \label{fig:trolley}
 \end{figure}
 
-\subsubsection*{Dinámica del Carro (Masa Traslacional)}
+\subsubsection{Dinámica del Carro (Masa Traslacional)}
 Aplicando la segunda ley de Newton al movimiento horizontal del carro, se tiene:
 \begin{equation} \label{eq:carro_newton}
     M_t \, \frac{d \, v_t(t)}{dt} = F_{tw}(t) - b_t \, v_t(t) + F_{coupling}(t)
@@ -93,26 +93,28 @@ Donde:
     \item $F_{coupling}(t) = 2 F_{hw} \sin\theta_l$: Fuerza horizontal perturbadora debida al balanceo de la carga.
 \end{itemize}
 
-\subsubsection*{Acoplamiento Elástico (Cable de Acero)}
+\subsubsection{Acoplamiento Elástico del Cable}
 El cable transmite la fuerza entre el tambor y el carro. Se modela como un resorte con rigidez $K_{tw}$ y amortiguación $b_{tw}$:
 \begin{equation} \label{eq:fuerza_cable}
     F_{tw}(t) = K_{tw} \, (x_{td}(t) - x_t(t)) + b_{tw} \, (v_{td}(t) - v_t(t))
 \end{equation}
 Donde $x_{td}$ y $v_{td}$ son la posición y velocidad lineal equivalente del cable en la superficie del tambor.
 
-\subsubsection*{Dinámica del Tambor (Eje Lento)}
-La dinámica rotacional del eje de salida (tambor) está dada por:
-\begin{equation} \label{eq:eje_lento}
-    J_{td} \, \frac{d \, \omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \, \omega_{td}(t) - T_{tdl}(t)
-\end{equation}
-Donde $T_{tdl}(t) = F_{tw}(t) \, r_{td}$ es el torque de carga generado por la tensión del cable.
+\subsubsection{Dinámica del Accionamiento}
+\begin{itemize}
+    \item \textbf{Dinámica del Tambor (Eje Lento):} La dinámica rotacional del eje de salida (tambor) está dada por:
+    \begin{equation} \label{eq:eje_lento}
+        J_{td} \, \frac{d \, \omega_{td}(t)}{dt} = T_{td}(t) - b_{td} \, \omega_{td}(t) - T_{tdl}(t)
+    \end{equation}
+    Donde $T_{tdl}(t) = F_{tw}(t) \, r_{td}$ es el torque de carga generado por la tensión del cable.
 
-\subsubsection*{Dinámica del Motor y Freno (Eje Rápido)}
-La dinámica del eje de entrada (motor) se define como:
-\begin{equation} \label{eq:eje_rapido}
-    J_{tm+tb} \, \frac{d \, \omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \, \omega_{tm}(t) - T_{tml}(t)
-\end{equation}
-Donde $T_{tml}$ es el torque resistente que la caja reductora demanda al motor.
+    \item \textbf{Dinámica del Motor (Eje Rápido):} La dinámica rotacional del eje de entrada (motor) está dada por:
+    \begin{equation} \label{eq:eje_rapido}
+        J_{tm+tb} \, \frac{d \, \omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \, \omega_{tm}(t) - T_{tml}(t)
+    \end{equation}
+    Donde $T_{tml}$ es el torque resistente que la caja reductora demanda al motor.
+\end{itemize}
+
 
 \subsubsection*{Modelo del Freno Mecánico de Operación}
 El sistema dispone de un freno mecánico en el eje rápido del motor, configurado como Normal Cerrado (NC) por seguridad. El torque de frenado $T_{tb}$ depende del estado lógico de la señal de control \textcolor{cyan}{$BRK_t$} (0: Desenergizado/Cerrado, 1: Energizado/Abierto).
@@ -212,21 +214,73 @@ El sistema de izaje controla la elevación de la carga mediante un mecanismo de 
     \label{fig:hoist}
 \end{figure}
 
-\subsubsection*{Dinámica de la Carga Suspendida (Eje Vertical)}
-La masa suspendida $m_l$ (que varía según si el spreader tiene contenedor o no) está sometida a la gravedad y a la tensión de los cables. Debido al arreglo de poleas (relación 2:1), la fuerza efectiva hacia arriba es el doble de la tensión del cable $F_{hw}$.
+\subsubsection{Dinámica de la Carga Suspendida (Movimiento Plano General)}
 
-\begin{equation} \label{eq:carga_izaje}
-    m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{ly}(t)}{dt} = 2 F_{hw}(t) \, \cos(\theta_l(t)) - m_l(\textcolor{cyan}{TLK}) \, g + F_{cy}(t)
-\end{equation}
-Donde:
+La carga se modela como una masa puntual concentrada en el centro de gravedad del conjunto Spreader/Contenedor, con 2 grados de libertad: traslación horizontal $x_l$ y vertical $y_l$. Su dinámica es híbrida, ya que sus parámetros (masa y geometría) cambian discretamente según el estado de los \textit{Twistlocks} y su interacción con el entorno cambia según si está suspendida o apoyada.
+
+\subsubsection*{Definición de Masa y Geometría}
+Los parámetros inerciales y geométricos dependen del estado discreto de los cerrojos (twistlocks), controlado por la señal lógica \textcolor{cyan}{$TLK$}. Según la especificación:
 \begin{itemize}
-    \item $m_l(\textcolor{cyan}{TLK})$: Masa total, spreader + contenedor (si Twistlocks = On).
-    \item $F_{hw}(t)$: Tensión en el cable de acero (cable único equivalente).
-    \item $\theta_l$: Ángulo de balanceo (si $\theta \approx 0 \implies \cos \approx 1$).
-    \item $F_{cy}(t)$: Fuerza de contacto/reacción vertical si la carga toca el suelo (0 si está suspendida).
+    \item \textbf{Masa Total ($m_l$):}
+    \begin{equation}
+        m_l(\textcolor{cyan}{TLK}) = 
+        \begin{cases} 
+            M_s & \text{si } \textcolor{cyan}{TLK} = \text{Off (solo spreader)} \\
+            M_s + M_{cX} & \text{si } \textcolor{cyan}{TLK} = \text{On (spreader + contenedor)}
+        \end{cases}
+    \end{equation}
+
+    \item \textbf{Altura de la Carga ($h_c$):} Define la distancia desde el punto de suspensión hasta la base inferior (necesaria para calcular colisiones/apoyo).
+    \begin{equation}
+        h_c(\textcolor{cyan}{TLK}) = 
+        \begin{cases} 
+            0 & \text{si } \textcolor{cyan}{TLK} = \text{Off} \\
+            H_c & \text{si } \textcolor{cyan}{TLK} = \text{On}
+        \end{cases}
+    \end{equation}
 \end{itemize}
 
-\subsubsection*{Acoplamiento del Cable con Rigidez Variable}
+\subsubsection*{Ecuaciones de Movimiento}
+Aplicando la segunda ley de Newton en el plano vertical, la aceleración de la carga resulta de la suma vectorial de: la tensión del cable, la gravedad y las fuerzas de reacción del entorno.
+\begin{itemize}
+    \item \textbf{Dinámica Horizontal (Ecuación de Balanceo):} La componente horizontal de la tensión del cable actúa como fuerza restauradora hacia la posición del carro.
+    \begin{equation} \label{eq:carga_horiz}
+        m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{lx}(t)}{dt} = -2 F_{hw}(t) \, \sin(\theta_l(t)) + F_{cx}(t)
+    \end{equation}
+    \textit{Nota:} El signo negativo indica que si la carga está a la derecha ($\theta > 0$), la fuerza tira hacia la izquierda.
+
+    \item \textbf{Dinámica Vertical (Ecuación de Izaje):}
+    \begin{equation} \label{eq:carga_vert}
+        m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{ly}(t)}{dt} = 2 F_{hw}(t) \, \cos(\theta_l(t)) - m_l(\textcolor{cyan}{TLK}) \, g + F_{cy}(t)
+    \end{equation}
+\end{itemize}
+
+\subsubsection*{Interacción con el Entorno (Modelo de Contacto)}
+La carga interactúa con un perfil de obstáculos $y_{c0}(x,t)$ (suelo, barco, otros contenedores). Se define la penetración vertical $\delta_y$ como:
+\[ \delta_y(t) = y_{c0}(x_l,t) - (y_l(t) - h_c(\textcolor{cyan}{TLK})) \]
+
+Las fuerzas de reacción actúan solo cuando hay contacto ($\delta_y \ge 0$):
+\begin{itemize}
+    \item \textbf{Fuerza Vertical de Soporte ($F_{cy}$):} Modelo elástico-amortiguado (resorte $K_{cy}$ y amortiguador $b_{cy}$) que resiste la compresión.
+    \begin{equation}
+        F_{cy}(t) = 
+        \begin{cases} 
+            K_{cy} \, \delta_y(t) - b_{cy} \, v_{ly}(t) & \text{si } \delta_y(t) \ge 0 \text{ (Apoyado)} \\
+            0 & \text{si } \delta_y(t) < 0 \text{ (Suspendido)}
+        \end{cases}
+    \end{equation}
+
+    \item \textbf{Fuerza Horizontal de Fricción ($F_{cx}$):} Resistencia al arrastre horizontal, existente solo si hay contacto vertical.
+    \begin{equation}
+        F_{cx}(t) = 
+        \begin{cases} 
+            -b_{cx} \, v_{lx}(t) & \text{si } \delta_y(t) \ge 0 \\
+            0 & \text{si } \delta_y(t) < 0
+        \end{cases}
+    \end{equation}
+\end{itemize}
+
+\subsubsection{Acoplamiento del Cable con Rigidez Variable}
 El cable de izaje se modela como un resorte-amortiguador. A diferencia del carro, su longitud desenrollada $l_h(t)$ cambia drásticamente, lo que afecta su rigidez $K_{hw}$.
 
 Tanto la rigidez unitaria $k_{hwu}$ como el amortiguamiento unitario $b_{hwu}$ escalan con la longitud total del cable bajo tensión ($2 l_h(t) + L_{h0}$):
@@ -244,7 +298,7 @@ La fuerza de tensión $F_{hw}$ se calcula solo si el cable está tenso ($l \ge l
 \end{equation}
 Donde la elongación es $\Delta L = 2(l(t) - l_h(t))$ debido al reeving.
 
-\subsubsection*{Dinámica del Accionamiento}
+\subsubsection{Dinámica del Accionamiento}
 El sistema posee dos frenos y una transmisión.
 \begin{itemize}
     \item \textbf{Eje Lento (Tambor):} Posee el Freno de Emergencia ($T_{hEb}$).
@@ -318,6 +372,10 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
             - m_l(\textcolor{cyan}{TLK})\,g
             + F_{cy}(t)
         \right]
+    \end{equation}
+    \begin{equation}
+        \frac{d\,v_{lx}(t)}{dt}
+        = \frac{1}{m_l(\textcolor{cyan}{TLK})}\left[-2 F_{hw}(t) \, \sin(\theta_l(t)) + F_{cx}(t)\right]
     \end{equation}
 
     \item \textbf{Posición de la carga:}
