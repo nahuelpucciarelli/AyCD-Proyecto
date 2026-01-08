@@ -121,8 +121,8 @@ Para evitar discontinuidades numéricas abruptas durante la simulación (chatter
 \begin{equation} \label{eq:brake_model}
     T_{tb}(t) = 
     \begin{cases} 
-        0 & \text{si } BRK_t = 1 \text{ (Abierto/Energizado)} \\
-        -T_{tb\_Max} \, \tanh(b_{tb} \, \omega_{tm}(t)) & \text{si } BRK_t = 0 \text{ (Cerrado/Frenado)}
+        0 & \text{si } \textcolor{cyan}{BRK_t} = 1 \text{ (Abierto/Energizado)} \\
+        -T_{tb\_Max} \, \tanh(b_{tb} \, \omega_{tm}(t)) & \text{si } \textcolor{cyan}{BRK_t} = 0 \text{ (Cerrado/Frenado)}
     \end{cases}
 \end{equation}
 
@@ -242,13 +242,13 @@ Aplicando la segunda ley de Newton en el plano vertical, la aceleración de la c
 \begin{itemize}
     \item \textbf{Dinámica Horizontal (Ecuación de Balanceo):} La componente horizontal de la tensión del cable actúa como fuerza restauradora hacia la posición del carro.
     \begin{equation} \label{eq:carga_horiz}
-        m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{lx}(t)}{dt} = -2 F_{hw}(t) \, \sin(\theta_l(t)) + F_{cx}(t)
+        m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{lx}(t)}{dt} = -2 F_{hw}(t) \, \sin\theta_l(t) + F_{cx}(t)
     \end{equation}
     \textit{Nota:} El signo negativo indica que si la carga está a la derecha ($\theta > 0$), la fuerza tira hacia la izquierda.
 
     \item \textbf{Dinámica Vertical (Ecuación de Izaje):}
     \begin{equation} \label{eq:carga_vert}
-        m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{ly}(t)}{dt} = 2 F_{hw}(t) \, \cos(\theta_l(t)) - m_l(\textcolor{cyan}{TLK}) \, g + F_{cy}(t)
+        m_l(\textcolor{cyan}{TLK}) \, \frac{d \, v_{ly}(t)}{dt} = 2 F_{hw}(t) \, \cos\theta_l(t) - m_l(\textcolor{cyan}{TLK}) \, g + F_{cy}(t)
     \end{equation}
 \end{itemize}
 
@@ -282,7 +282,7 @@ El cable de izaje se modela como un resorte-amortiguador. A diferencia del carro
 
 Tanto la rigidez unitaria $k_{hwu}$ como el amortiguamiento unitario $b_{hwu}$ escalan con la longitud total del cable bajo tensión ($2 l_h(t) + L_{h0}$):
 \begin{equation}
-    K_{hw}(l_h) = \frac{k_{hwu}}{2 l_h(t) + L_{h0}} \quad ; \quad b_{hw}(l_h) = \frac{b_{hwu}}{2 l_h(t) + L_{h0}}
+    K_{hw}(l_h) = \frac{k_{hwu}}{2 l_h(t) + L_{h0}} \quad ; \quad b_{hw}(l_h) = b_{hwu}\,(2 l_h(t) + L_{h0})
 \end{equation}
 
 La fuerza de tensión $F_{hw}$ se calcula solo si el cable está tenso ($l \ge l_h$):
@@ -372,7 +372,7 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \end{equation}
     \begin{equation}
         \frac{d\,v_{lx}(t)}{dt}
-        = \frac{1}{m_l(\textcolor{cyan}{TLK})}\left[-2 F_{hw}(t) \, \sin(\theta_l(t)) + F_{cx}(t)\right]
+        = \frac{1}{m_l(\textcolor{cyan}{TLK})}\left[-2 F_{hw}(t) \, \sin\theta_l(t) + F_{cx}(t)\right]
     \end{equation}
 
     \item \textbf{Posición de la carga:}
@@ -401,17 +401,15 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     ($\omega_{hm} > 0$) enrolla el cable y reduce la longitud $l_h$.
 \end{itemize}
 
-
 \textbf{Variables auxiliares:}
 \begin{itemize}
     \item Rigidez variable: $K_{hw}(l_h) = \frac{k_{hwu}}{2 l_h(t) + L_{h0}}$
-    \item Amortiguamiento variable: $b_{hw}(l_h) = \frac{b_{hwu}}{2 l_h(t) + L_{h0}}$
+    \item Amortiguamiento variable: $b_{hw}(l_h) = b_{hwu}\,(2 l_h(t) + L_{h0})$
     \item Longitud geométrica actual (Pitágoras): $l(t) = \sqrt{(x_l - x_t)^2 + (Y_{t0} - y_l)^2} \quad$ ($Y_{t0}$ es la altura fija de poleas de izaje en el carro)
     \item Velocidad de cambio de longitud (para el amortiguamiento):
     \[ \frac{dl(t)}{dt} = \frac{(x_l - x_t)(v_{lx} - v_t) - (Y_{t0} - y_l)v_{ly}}{l(t)} \]
-    \item Componentes trigonométricas (para descomposición de fuerzas):
-    \[ \sin\theta_l = \frac{x_l - x_t}{l(t)} \quad ; \quad \cos\theta_l = \frac{Y_{t0} - y_l}{l(t)} \]
+    \item Cálculo de $\theta_l $:
+    \[ \theta_l = \text{atan2}\left(\frac{x_l(t) - x_t(t)}{Y_{t0} - y_l(t)}\right) \]
 \end{itemize}
-
 
 \end{document}
