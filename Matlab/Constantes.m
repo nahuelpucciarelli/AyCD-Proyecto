@@ -128,6 +128,12 @@ Ts2 = 1e-3;                % [s] Nivel 2 – Control regulatorio
 Ts1 = 20e-3;               % [s] Nivel 1 – Control supervisor
 Ts0 = 20e-3;               % [s] Nivel 0 – Seguridad / Protección
 
+%% ======================
+% PERFIL DE RELIEVE INICIAL
+%% ======================
+
+N_pos = floor((xt_max-xt_min)/Wc);
+
 %% ============================================================
 % VARIABLES (NO CONSTANTES) – TOMADAS DE LAS ECUACIONES DEL MODELO
 % Estas NO se fijan acá: se calculan/actualizan durante simulación.

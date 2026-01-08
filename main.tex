@@ -413,4 +413,45 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
 \end{itemize}
 
 \subsection{Perfil 2D de Obstáculos}
+
+El carro cuenta con un sistema de sensado LIDAR (escaner láser infrarojo 1D) para relevar el perfil topográfico de obstáculos $y_{c0}$ en el área de operación. Este perfil define la superficie efectiva con la que puede interactuar la carga suspendida (spreader/contenedor). El sensor está colocado en el carro, 3 m hacia adelante del spreader, y mide la distancia vertical instantánea desde el carro en movimiento hasta la pila de obstáculos.
+
+Se puede discretizar la posicion del carro (y por lo tanto del spreader) en el rango $x_t \in [x_{t_{min}}, x_{t_{max}}]$ utilizando el ancho del contenedor $W_c$ como paso entre centros. Luego, la cantidad de posiciones discretas a lo largo de $x_t$:
+\begin{equation}
+    N_{x_t} = floor\left( \frac{x_{t_{max}} - x_{t_{min}}}{W_c} \right)+1
+\end{equation}
+
+Teniendo en cuenta que $x_{t_{min}}=-30\,m$ (sobre el muello) y $x_{t_{max}}=50\,m$ (sobre el barco), y que $W_c=2.44\,m$ (ancho estándar de contenedor ISO 20'), se obtiene que $N_{x_t} = 33$. Los posibles índices serán entonces:
+\begin{equation}
+    i = 1, 2, 3, \ldots, 33
+\end{equation}
+Luego, la última posición discreta corresponde a:
+\begin{equation}
+    x_{33} = -30\,m + (33-1) \cdot 2.44\,m = 48.08\,m
+\end{equation}
+Por lo que se verifica que el rango de discretización cubre todo el área de operación del carro sin exceder el límite de $x_{t_{max}}$.
+
+Se puede crear un vector $h_i(t)$ de tamaño $N_{x_t}$ que puede ser rellenado con las alturas sensadas por el sensor LIDAR. Se puede calcular el indice $i$ correspondiente a la posicion actual del sensor (teniendo en cuenta el offset respecto al carro) con:
+
+\begin{equation}
+    i = floor\left( \frac{(x_t(t)+3\,m) - x_{t_{min}}}{W_c} \right)
+\end{equation}
+
+Una vez que el vector de alturas $h_i(t)$ se va rellenando, se construye una funcion escalonada continua de base $W_c$, donde cada rectangulo toma la altura del elemento correspondiente del vector:
+\begin{equation}
+    y_{c0}(x,t) = \sum_{i=1}^{N_{x_t}} h_i(t)\cdot
+    \Pi\!\left(\frac{x - x_{pos_i}}{W_c}\right)
+\end{equation}
+con $h_i(t)$ la altura medida en la posicion $x_{pos_i}$ y $\Pi(\xi)$ la funcion caja unitaria.
+
+El vector $h_i(t)$ se actualiza dinámicamente durante la operación de la grúa, permitiendo que el sistema de control y protección utilice el perfil de obstáculos más reciente para planificar movimientos seguros y evitar colisiones.
+
+También se puede permitir la carga de un vector inicial $h_i$ obtenido previamente o de un escenario previo para mantener la continuidad entre simulaciones sucesivas.
+
+
+
+
+
+
+
 \end{document}
