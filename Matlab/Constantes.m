@@ -132,7 +132,15 @@ Ts0 = 20e-3;               % [s] Nivel 0 – Seguridad / Protección
 % PERFIL DE RELIEVE INICIAL
 %% ======================
 
-N_pos = floor((xt_max-xt_min)/Wc);
+N_xt = floor((xt_max-xt_min)/Wc)+1;
+
+yc0_vec = zeros(1,N_xt);
+
+h_vec = [1,2,3,4,5,1,2,3,4,5,1,4,1,2,0,0,0,0,0,0,0,0,1,5,20,10,5,4,10,15,4,4,8,0];
+
+h_vec_saved = zeros(1,N_xt); % Utilizado para guardar estados de relieve
+
+x_LIDAR = 3;               % [m] Offset del sensor lidar respecto al carro hacia +xt
 
 %% ============================================================
 % VARIABLES (NO CONSTANTES) – TOMADAS DE LAS ECUACIONES DEL MODELO

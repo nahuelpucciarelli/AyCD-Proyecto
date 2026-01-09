@@ -14,3 +14,11 @@ comandos_git.tex
 
 # EXCEPCIONES
 !comandos_git.pdf
+
+# Archivos cache de simulaciones
+Matlab/Simulink/slprj/
+*.mat
+*.l
+*.xml
+Constantes.asv
+*.slxc
