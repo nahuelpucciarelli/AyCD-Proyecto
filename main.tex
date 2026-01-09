@@ -449,10 +449,9 @@ También se puede permitir la carga de un vector inicial $h_i$ obtenido previame
 \subsection{Instrumentación y Sensores de Posición}
 Para la retroalimentación del sistema de control y la protección automática, se modelan sensores de posición continua (encoders) y discretos (fines de carrera).
 
-\subsubsection{Sistema de Encoders (Medición en Ejes de Motor)}
+\subsubsection{Sistema de Encoders}
 Conforme a la especificación, los sensores de posición son encoders absolutos o incrementales montados solidarios al eje de cada motor.
 El sistema de control no recibe los ángulos directamente, sino que procesa estas señales para obtener las posiciones lineales equivalentes.
-
 \begin{enumerate}
     \item \textbf{Encoder del Carro:} El sensor mide el ángulo acumulado del motor de carro, $\theta_{tm}(t)$. La señal de posición lineal se obtiene aplicando la relación de transmisión $i_t$ y el radio del tambor $r_{td}$:
     \begin{equation}
@@ -463,7 +462,7 @@ El sistema de control no recibe los ángulos directamente, sino que procesa esta
     Por lo tanto, se utiliza la señal $x_{td}$ proveniente del subsistema de accionamiento como realimentación para el controlador.
     \item \textbf{Encoder de Izaje:} El sensor mide el ángulo acumulado del motor de izaje, $\theta_{hm}(t)$. La conversión considera la reducción de la caja $i_h$, el radio del tambor $r_{hd}$ y el factor de aparejo (reeving) 2:1.
     \begin{equation}
-        l_{h,enc}(t) = \theta_{hm}(t) \cdot \frac{r_{hd}}{2 \cdot i_h}
+        l_{h,enc}(t) = \theta_{hm}(t) \, \frac{r_{hd}}{2 \, i_h}
     \end{equation}
     Finalmente, la altura operativa se refiere al nivel del muelle ($y=0$):
     \begin{equation}
@@ -474,11 +473,10 @@ El sistema de control no recibe los ángulos directamente, sino que procesa esta
 
 \subsubsection{Fines de Carrera}
 La lógica de detección de límites se modela según la ubicación física descrita en las especificaciones, diferenciando entre sensores externos (viga) y sensores internos (tambor).
-
 \begin{enumerate}
     \item \textbf{Fines de Carrera de Carro (Fijos en Viga):} Al estar montados físicamente sobre la estructura de la grúa, estos sensores detectan la posición real de la masa del carro $x_t(t)$, independientemente de la elongación del cable o la posición del motor.
     \begin{itemize}
-        \item \textbf{Señal de entrada:} Posición real del carro $x_t$.
+        \item \textbf{Entrada:} Posición real del carro $x_t$.
         \item \textbf{Lógica de activación:}
         \begin{equation}
             FC_{t,\,\text{derecha}} = 
@@ -491,7 +489,7 @@ La lógica de detección de límites se modela según la ubicación física desc
     \end{itemize}
     \item \textbf{Fines de Carrera de Izaje (Rotativos en Tambor):} Al estar acoplados mecánicamente al eje del tambor, estos sensores detectan la cantidad de cable desenrollado. No miden la posición real de la carga (que varía con el balanceo).
     \begin{itemize}
-        \item \textbf{Señal de entrada:} Altura calculada por encoder $y_{enc}(t) = Y_{t0} - l_h(t)$.
+        \item \textbf{Entrada:} Altura calculada por encoder $y_{enc}(t) = Y_{t0} - l_h(t)$.
         \item \textbf{Lógica de activación:}
         \begin{equation}
             FC_{h,\,\text{superior}} = 
@@ -503,8 +501,6 @@ La lógica de detección de límites se modela según la ubicación física desc
         (Análogamente para el descenso hacia $y_{h,min}$).
     \end{itemize}
 \end{enumerate}
-
-
 
 
 \end{document}
