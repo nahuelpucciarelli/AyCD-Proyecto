@@ -182,11 +182,13 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
             - b_t\,v_t(t)
             + F_{coupling}(t)
         \right]
+        \label{eq:carro_dinamica}
     \end{equation}
 
     \item \textbf{Posición del carro:}
     \begin{equation}
         \frac{d\,x_t(t)}{dt} = v_t(t)
+        \label{eq:carro_posicion}
     \end{equation}
 
     \item \textbf{Fuerza del cable del carro:}
@@ -481,6 +483,7 @@ La lógica de detección de límites se modela según la ubicación física desc
         \begin{equation}
             FC_{t,\,\text{derecha}} = 
             \begin{cases} 
+                0 & \text{si } x_t(t) < x_{t,max}  \\
                 1 & \text{si } x_t(t) \ge x_{t,max} \quad (\text{Operativo}) \\
                 1 & \text{si } x_t(t) \ge x_{t,max} + 0.5 \text{m} \quad (\text{Emergencia})
             \end{cases}
@@ -493,7 +496,8 @@ La lógica de detección de límites se modela según la ubicación física desc
         \item \textbf{Lógica de activación:}
         \begin{equation}
             FC_{h,\,\text{superior}} = 
-            \begin{cases} 
+            \begin{cases}
+                0 & \text{si } y_{enc}(t) < y_{h,max} \quad (\text{Operativo}) \\
                 1 & \text{si } y_{enc}(t) \ge y_{h,max} \quad (\text{Operativo}) \\
                 1 & \text{si } y_{enc}(t) \ge y_{h,max} + 0.5 \text{m} \quad (\text{Emergencia})
             \end{cases}
@@ -501,6 +505,52 @@ La lógica de detección de límites se modela según la ubicación física desc
         (Análogamente para el descenso hacia $y_{h,min}$).
     \end{itemize}
 \end{enumerate}
+
+\section{Nivel 2: Control Regulatorio}
+El Nivel 2 corresponde al control regulatorio de las variables continuas del sistema. Su objetivo es garantizar que los accionamientos sigan referencias de posición, velocidad y aceleración con precisión y suavidad, respetando restricciones físicas (límites de recorrido, saturaciones de torque, corrientes máximas) y atenuando perturbaciones como el balanceo de la carga o variaciones de masa. Este nivel opera en tiempo discretizado mediante muestreo (Sampled CTDS) y se implementa típicamente con lazos de realimentación en cascada (corriente/torque, velocidad y posición), además de compensaciones que mejoran la respuesta transitoria.
+
+En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
+
+\subsection{Control de Traslación del Carro}
+Aplicando la transformada de Laplace a las ecuaciones de dinámica y posición del carro \eqref{eq:carro_dinamica} y \eqref{eq:carro_posicion}, con condiciones iniciales nulas, se obtiene:
+\begin{align}
+    M_t\,s\,V_t(s) &= F_{tw}(s) - b_t\,V_t(s) + F_{coupling}(s) \\
+    s\,X_t(s) &= V_t(s)
+\end{align}
+Considerando $F_{coupling}(s)$ como perturbación, la relación entrada-salida desde $F_{tw}$ a $X_t$ resulta:
+\begin{equation}
+    G_t(s) = \frac{X_t(s)}{F_{tw}(s)} = \frac{1}{s\,(M_t\,s + b_t)}
+\end{equation}
+
+El polinomio característico del subsistema mecánico es:
+\begin{equation}
+    \Delta_t(s) = M_t\,s^2 + b_t\,s = s\,(M_t\,s + b_t)
+\end{equation}
+por lo que sus polos se ubican en $s_1 = 0$ y $s_2 = -\frac{b_t}{M_t}$.
+
+\subsubsection*{Diseño PID con polos 10 veces más rápidos}
+Se propone un controlador PID en lazo unitario:
+\[
+    C(s) = K_p + \frac{K_i}{s} + K_d\,s
+\]
+cuyas ganancias se seleccionan para ubicar los polos del lazo cerrado diez veces más rápidos que los polos del sistema físico. Para el lazo cerrado con $G_t(s)$ y $C(s)$, el polinomio característico queda:
+\begin{equation}
+    M_t\,s^3 + (b_t + K_d)\,s^2 + K_p\,s + K_i = 0
+\end{equation}
+Adoptando un polinomio deseado con polos repetidos en $-10\,\frac{b_t}{M_t}$:
+\[
+    \Delta_d(s) = \left(s + 10\,\frac{b_t}{M_t}\right)^3
+    = s^3 + 30\,\frac{b_t}{M_t}\,s^2 + 300\,\frac{b_t^2}{M_t^2}\,s + 1000\,\frac{b_t^3}{M_t^3}
+\]
+y equiparando coeficientes se obtiene:
+\begin{equation}
+    K_d = 29\,b_t, \quad
+    K_p = 300\,\frac{b_t^2}{M_t}, \quad
+    K_i = 1000\,\frac{b_t^3}{M_t^2}
+\end{equation}
+Estas ganancias ubican los polos del lazo cerrado a una década hacia la izquierda respecto al polo físico $-b_t/M_t$, asegurando una dinámica de seguimiento más rápida.
+
+
 
 
 \end{document}
