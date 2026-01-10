@@ -49,7 +49,7 @@ Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}
 \tableofcontents
 
 \newpage
-\section{Desarrollo y modelado}
+\section{Modelado de la Planta}
 Este proyecto considera el control de accionamientos eléctricos y operación semi-automática coordinada de los dos movimientos principales continuos y simultáneos de la grúa en un plano vertical (2D): traslación horizontal del carro (Trolley) sobre las vigas principal y móvil (paralelo al eje $x$); e Izaje/descenso, o traslación vertical, de la carga (Hoist) bajo la posición del carro (paralelo al eje $y$).
 
 Ambos movimientos son impulsados mediante cables de acero (wireropes) desde mecanismos rotativos con tambores, cajas de engranajes, frenos mecánicos y motores eléctricos, ubicados en una Casa de Máquinas (Machinery House) fija, con sus correspondientes accionamientos electrónicos de velocidad variable; dichos movimientos tienen \textit{restricciones de operación}: posiciones límite de recorrido, velocidades máximas y aceleraciones máximas. Están \textit{acoplados entre sí por la carga} (headblock/spreader con o sin container), que se balancea suspendida del carro que la traslada mediante los cables de izaje.
@@ -349,7 +349,7 @@ Dado que el Freno de Emergencia está en el eje lento, su torque también se div
 Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de mayor orden para su implementación mediante bloques en Simulink.
 \begin{itemize}
     \item \textbf{Accionamiento del izaje:}
-    \begin{equation}
+    \begin{equation}\label{accionamiento_izaje}
         \frac{d\,\omega_{hm}(t)}{dt}
         = \frac{1}{J_{eq,h}}
         \left[
@@ -363,7 +363,7 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     donde $T_{hdl} = F_{hw}\,r_{hd}$ es el torque ejercido por el cable sobre el tambor.
 
     \item \textbf{Dinámica de la carga:}
-    \begin{equation}
+    \begin{equation}\label{v_vertical}
         \frac{d\,v_{ly}(t)}{dt}
         = \frac{1}{m_l(\textcolor{cyan}{TLK})}
         \left[
@@ -372,7 +372,7 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
             + F_{cy}(t)
         \right]
     \end{equation}
-    \begin{equation}
+    \begin{equation}\label{v_horizontal}
         \frac{d\,v_{lx}(t)}{dt}
         = \frac{1}{m_l(\textcolor{cyan}{TLK})}\left[-2 F_{hw}(t) \, \sin\theta_l(t) + F_{cx}(t)\right]
     \end{equation}
@@ -506,8 +506,8 @@ La lógica de detección de límites se modela según la ubicación física desc
     \end{itemize}
 \end{enumerate}
 
-\section{Nivel 2: Control Regulatorio}
-El Nivel 2 corresponde al control regulatorio de las variables continuas del sistema. Su objetivo es garantizar que los accionamientos sigan referencias de posición, velocidad y aceleración con precisión y suavidad, respetando restricciones físicas (límites de recorrido, saturaciones de torque, corrientes máximas) y atenuando perturbaciones como el balanceo de la carga o variaciones de masa. Este nivel opera en tiempo discretizado mediante muestreo (Sampled CTDS) y se implementa típicamente con lazos de realimentación en cascada (corriente/torque, velocidad y posición), además de compensaciones que mejoran la respuesta transitoria.
+\section{Diseño del Control Regulatorio (Nivel 2)}
+El Nivel 2 corresponde al control regulatorio de las variables continuas del sistema. Su objetivo es garantizar que los accionamientos sigan referencias de posición, velocidad y aceleración con precisión y suavidad, respetando restricciones físicas (límites de recorrido, saturaciones de torque, corrientes máximas) y atenuando perturbaciones como el balanceo de la carga o variaciones de masa. Este nivel opera en tiempo discretizado mediante muestreo (Sampled CTDS) y se implementará con lazos de realimentación en cascada (corriente/torque, velocidad y posición), además de compensaciones para mejorar la respuesta transitoria.
 
 En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
 
@@ -551,6 +551,148 @@ y equiparando coeficientes se obtiene:
 Estas ganancias ubican los polos del lazo cerrado a una década hacia la izquierda respecto al polo físico $-b_t/M_t$, asegurando una dinámica de seguimiento más rápida.
 
 
+\subsection{Control de Izaje de la Carga}
+Para el control de la carga en el izaje, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque). Esta estrategia permite limitar explícitamente la velocidad y aceleración de la carga, protegiendo el mecanismo y garantizando la seguridad operativa.
+
+\subsubsection{Modelo de Izaje para Control de Velocidad}
+Partiendo de la ecuación dinámica del izaje (\ref{accionamiento_izaje}) y considerando el sistema linealizado alrededor de un punto de operación, se asume que la dinámica del cable es rígida para el ancho de banda del controlador. 
+
+La ecuación de balance de torques en el eje del motor es:
+\begin{equation}
+    J_{eq,h} \, \frac{d \, \omega_{hm}(t)}{dt} + b_{eq,h} \, \omega_{hm}(t) = T_{hm}(t) - T_{dist}(t)
+\end{equation}
+Donde $T_{dist}(t)$ es el torque perturbador que encapsula todas las dinámicas no lineales y externas al accionamiento:
+\begin{equation}
+    T_{dist}(t) = \underbrace{\frac{F_{hw}(t) \, r_{hd}}{i_h}}_{\text{Tensión de Cable}} + \underbrace{T_{hb}(t) + \frac{T_{hEb}(t)}{i_h}}_{\text{Fricción de Frenos}} + \Delta_{model}(t)
+\end{equation}
+
+Aplicando la Transformada de Laplace, la función de transferencia de la planta es:
+\begin{equation} \label{eq:G_vel}
+    G_{vel}(s) = \frac{\Omega_{hm}(s)}{T_{hm}(s)} = \frac{1}{J_{eq,h} \, s + b_{eq,h}}
+\end{equation}
+El polo mecánico del sistema es $P_{mec} = -b_{eq,h}/J_{eq,h}$. Dado que la fricción es muy baja en estos sistemas, el polo se encuentra muy cerca del origen ($P_{mec} \approx 0$), comportándose casi como un integrador puro.
+
+\subsubsection{Diseño del Lazo Interno (Control PI de Velocidad)}
+Se utiliza un controlador Proporcional-Integral (PI) para asegurar error nulo de velocidad ante escalones de referencia y rechazo de perturbaciones de carga constantes.
+\begin{equation}
+    C_{vel}(s) = K_p + \frac{K_i}{s}
+\end{equation}
+
+La función de transferencia a lazo cerrado $T(s)$ resulta:
+\begin{equation}
+    T(s) = \frac{C_{vel}(s) \, G_{vel}(s)}{1 + C_{vel}(s) \, G_{vel}(s)}
+\end{equation}
+
+Operando algebraicamente, obtenemos la ecuación característica de segundo orden:
+\begin{equation}
+    T(s) = \frac{K_p \, s + K_i}{J_{eq,h} \, s^2 + (b_{eq,h} + K_p) \, s + K_i}
+\end{equation}
+
+En lugar de utilizar el método de cancelación del polo dominante (que resultaría en una respuesta lenta debido al bajo $b_{eq,h}$), se utiliza el método de asignación de polos, donde se compara la ecuación característica con un polinomio de segundo orden deseado:
+\begin{equation}
+    P_{deseado}(s) = s^2 + 2 \, \zeta \, \omega_n \, s + \omega_n^2
+\end{equation}
+Donde:
+\begin{itemize}
+    \item $\omega_n$: Frecuencia natural deseada (ancho de banda del lazo cerrado). Se selecciona $\omega_n \approx 6$ rad/s para asegurar rapidez sin excitar la resonancia del cable.
+    \item $\zeta$: Factor de amortiguamiento. Se selecciona $\zeta = 0.707$ o $1$ para evitar sobrepasos.
+\end{itemize}
+
+Igualando término a término los coeficientes del denominador:
+\begin{align}
+    \text{Término } s^1: & \quad \frac{b_{eq,h} + K_p}{J_{eq,h}} = 2 \, \zeta \, \omega_n \implies K_p = 2 \, \zeta \, \omega_n \, J_{eq,h} - b_{eq,h} \\
+    \text{Término } s^0: & \quad \frac{K_i}{J_{eq,h}} = \omega_n^2 \implies K_i = \omega_n^2 \, J_{eq,h}
+\end{align}
+
+Como $b_{eq,h}$ es muy pequeña en comparación con la inercia, las ecuaciones de diseño se simplifican:
+\begin{equation} \label{eq:gains_hoist}
+    K_p \approx 2 \, \zeta \, \omega_n \, J_{eq,h} \quad ; \quad K_i = \omega_n^2 \, J_{eq,h}
+\end{equation}
+
+Esta sintonía garantiza que el sistema tenga la ``rigidez'' necesaria para sostener la carga, independientemente de la baja fricción mecánica.
+
+El torque del controlador PI en tiempo discreto es:
+\begin{equation}
+    T_{PID}(k) = K_p \, e_{vel}(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2} \left[ e_{vel}(j) + e_{vel}(j-1) \right]
+\end{equation}
+donde $e_{vel}(k) = \omega_{ref}(k) - \omega_{hm}(k)$ es el error de velocidad y $T_s$ es el período de muestreo.
+
+\subsubsection{Compensación de Gravedad (Feedforward)}
+Para mejorar el desempeño, se añade un término de pre-alimentación ($T_{g,ff}$) a la salida del PID. Esto permite que el término integral ($K_i$) solo se encargue de corregir errores de modelo y dinámicas, y no de sostener todo el peso estático.
+
+El valor de $T_{g,ff}$ se calcula imponiendo las condiciones de equilibrio estático ($\text{velocidad} = 0$, $\text{aceleración} = 0$) a las ecuaciones dinámicas de la carga y del accionamiento desarrolladas anteriormente.
+\begin{enumerate}
+    \item \textit{Condición de Suspensión:} Se asume que la carga cuelga libremente, por lo que no existe contacto con el entorno ($F_{cx} = 0$ y $F_{cy} = 0$).
+    \item \textit{Equilibrio Vertical:} De la ecuación de movimiento de la carga (\ref{v_vertical}), despreciando el balanceo ($\theta \approx 0$):
+    \begin{equation}
+        0 = 2 \, F_{hw} - m_l(\textcolor{cyan}{TLK}) \, g \implies F_{hw} = \frac{m_l(\textcolor{cyan}{TLK}) \, g}{2}
+    \end{equation}
+    \item \textit{Reflexión al Motor:} Transfiriendo esta tensión a través del radio del tambor ($r_{hd}$) y la relación de transmisión ($i_h$), se obtiene el torque requerido en el eje del motor.
+\end{enumerate}
+
+La ley de control final resulta:
+\begin{equation}
+    T_{ref}(k) = T_{PID}(k) + T_{g,ff} \quad ; \quad T_{g,ff} = \frac{m_l(\textcolor{cyan}{TLK}) \, g \, r_{hd}}{2 \, i_h}
+\end{equation}
+
+\subsubsection{Diseño del Lazo Externo (Control P de Posición)}
+Una vez estabilizada la velocidad con el lazo interno PI, el sistema se comporta, para propósitos del lazo externo, como un integrador ideal (la velocidad sigue a la referencia).
+\begin{equation}
+    \frac{Y_{enc}(s)}{V_{ref}(s)} \approx \frac{1}{s}
+\end{equation}
+
+Se implementa un controlador puramente Proporcional (P) con ganancia $K_{pos}$. La función de transferencia a lazo cerrado resulta:
+\begin{equation}
+    T_{pos}(s) = \frac{K_{pos} \, (1/s)}{1 + K_{pos} \, (1/s)} = \frac{K_{pos}}{s + K_{pos}}
+\end{equation}
+Esto corresponde a un sistema de primer orden con una frecuencia de corte (ancho de banda) igual a $K_{pos}$.
+
+Para que la suposición de cascada sea válida, el lazo interno (velocidad) debe ser significativamente más rápido que el externo. Se utiliza un factor de separación $N \approx 5 \dots 10$.
+\begin{equation}
+    K_{pos} = \frac{\omega_n}{N}
+\end{equation}
+Esto asegura que el lazo de velocidad tenga tiempo suficiente para reaccionar a los comandos del lazo de posición sin introducir oscilaciones.
+
+La ley de control se ejecuta secuencialmente en cada instante de muestreo $k$, incorporando la saturación física del mecanismo y la adaptación cinemática necesaria.
+
+1. \textit{Cálculo del Error y Demanda Proporcional:}
+\begin{equation}
+    e_{pos}(k) = y_{ref}(k) - y_{enc}(k)
+\end{equation}
+\begin{equation}
+    v_{demanda}(k) = K_{pos} \, e_{pos}(k)
+\end{equation}
+
+2. \textit{Saturación de Velocidad (Límite Operativo):}
+La demanda de velocidad se limita dinámicamente para respetar la curva de potencia constante del motor. A diferencia de un límite fijo, el valor de saturación $v_{h,limit}$ varía en función de la carga izada estimada ($\hat{m}_l$).
+
+Se define una masa base $M_{base}$ como el punto de quiebre a partir del cual el accionamiento ya no puede sostener la velocidad máxima sin exceder su potencia nominal.
+
+\begin{equation}
+    v_{h,limit}(\hat{m}_l) = 
+    \begin{cases} 
+        v_{h,max} & \text{si } \hat{m}_l < M_{base} \\
+        \frac{P_{h,nom}}{\hat{m}_l \, g} & \text{si } \hat{m}_l \ge M_{base}
+    \end{cases}
+\end{equation}
+
+Donde los parámetros del sistema son:
+\begin{itemize}
+    \item $P_{h,nom} = 956.15 \text{ kW}$: Potencia nominal disponible para izaje.
+    \item $v_{h,max} = 3.0 \text{ m/s}$: Velocidad máxima mecánica.
+    \item $M_{base} = 32,500 \text{ kg}$: Carga límite para operación a velocidad máxima.
+\end{itemize}
+
+Finalmente, la ley de control saturada que se envía como referencia al lazo interno resulta:
+\begin{equation}
+    v_{ref}(k) = \text{sat}\left( v_{demanda}(k), \, \pm v_{h,limit}(\hat{m}_l) \right)
+\end{equation}
+
+3. \textit{Adaptación Cinemática (Referencia al Lazo Interno):}
+Finalmente, se convierte la referencia de velocidad lineal a velocidad angular del motor considerando la geometría del tambor y el aparejo, para ser ingresada al lazo interno PI.
+\begin{equation}
+    \omega_{ref}(k) = v_{ref}(k) \, \left( \frac{2 \, i_h}{r_{hd}} \right)
+\end{equation}
 
 
 \end{document}
