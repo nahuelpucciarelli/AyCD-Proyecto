@@ -550,6 +550,46 @@ y equiparando coeficientes se obtiene:
 \end{equation}
 Estas ganancias ubican los polos del lazo cerrado a una década hacia la izquierda respecto al polo físico $-b_t/M_t$, asegurando una dinámica de seguimiento más rápida.
 
+\subsubsection*{PID en serie sobre velocidad ($v_t$) con entrada $T_{tm}$}
+En este caso la entrada del sistema es el torque del motor $T_{tm}$ y la variable de realimentación es la velocidad del carro $v_t$, con referencia $v_t^\ast$. Se evita usar $x_t$ para no introducir un derivador adicional que amplifique el ruido. Se adopta la aproximación cuasiestática del tren mecánico, de modo que la fuerza de tracción es proporcional al torque:
+\[
+    F_{tw}(s) \approx \frac{i_t}{r_{td}}\,T_{tm}(s)
+\]
+Despreciando perturbaciones, la planta velocidad–torque queda:
+\begin{equation}
+    G_v(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}, \quad K_f = \frac{i_t}{r_{td}}
+\end{equation}
+Se utiliza un PID en forma serie:
+\[
+    C(s) = K_c\left(1+\frac{1}{T_i s}\right)\left(1+T_d s\right)
+\]
+Con lazo unitario, el polinomio característico se obtiene de $1 + C(s)G_v(s)=0$:
+\begin{equation}
+    (M_t s + b_t)\,T_i s + K_c K_f\,(T_i s + 1)(T_d s + 1) = 0
+\end{equation}
+Expandiendo:
+\begin{equation}
+    M_t T_i\,s^3 + \left(b_t T_i + K_c K_f T_i T_d\right)s^2
+    + \left(K_c K_f T_i + K_c K_f T_d\right)s + K_c K_f = 0
+\end{equation}
+Para sintonía en serie se impone un polinomio deseado cúbico. Si se eligen polos coincidentes en $-a$:
+\[
+    \Delta_d(s) = (s+a)^3 = s^3 + 3a\,s^2 + 3a^2\,s + a^3
+\]
+y equiparando coeficientes se obtiene:
+\begin{equation}
+    T_i = \frac{M_t}{a^3 K_c K_f}, \quad
+    T_d = \frac{3a\,M_t - b_t}{K_c K_f} \cdot \frac{1}{T_i}, \quad
+    K_c K_f = a^3
+\end{equation}
+Una elección típica es $a = 10\,\frac{b_t}{M_t}$ para que el lazo cerrado sea una década más rápido que la dinámica mecánica $-b_t/M_t$. Con ello:
+\begin{equation}
+    K_c = \frac{a^3}{K_f}, \quad
+    T_i = \frac{M_t}{a^3 K_c K_f} = \frac{M_t}{a^6}, \quad
+    T_d = \frac{3a\,M_t - b_t}{a^3}
+\end{equation}
+Estas expresiones permiten calcular las ganancias del PID en forma serie para el control de velocidad con entrada de torque.
+
 
 
 
