@@ -151,7 +151,7 @@ x_LIDAR = 3;               % [m] Offset del sensor lidar respecto al carro hacia
 
 zitta_h = 1;    % Puede tomar valores entre 0.707 y 1
 omega_h = 6;    % rad/s. Puede tomar valores entre 4 y 10 rad/s
-N_h = 10;         % Factor de separación. Puede tomar valores entre 5 y 10
+N_h = 6;         % Factor de separación. Puede tomar valores entre 5 y 10
 
 % Test filtro calculo masa
 tau_filtro = 0.5;
