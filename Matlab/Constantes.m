@@ -146,6 +146,20 @@ h_vec_saved = zeros(1,N_xt); % Utilizado para guardar estados de relieve
 x_LIDAR = 3;               % [m] Offset del sensor lidar respecto al carro hacia +xt
 
 %% ======================
+% PARÁMETROS CONTROLADOR CAROO
+%% ======================
+
+a = 10*bt/Mt;
+Kf = it/rtd;
+
+Kd = 0;
+
+Kp = (2*a*(Mt+Kf*Kd)-bt)/Kf;
+Ki = (a^2*(Mt+Kf*Kd))/Kf;
+
+Kx = a/3;
+
+%% ======================
 % PARÁMETROS CONTROLADOR IZAJE
 %% ======================
 
