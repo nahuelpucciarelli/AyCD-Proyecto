@@ -27,6 +27,7 @@ Wc  = 2.44;                % [m] Ancho del container estándar ISO
 Ms     = 15000;            % [kg] Masa spreader + headblock (sin container)
 Mc_max = 50000;            % [kg] Masa máxima container cargado
 Mc_min = 2000;             % [kg] Masa mínima container vacío
+M_base  = 32500;           % [kg] Carga base para curva de potencia
 
 % McX:   [kg] Masa del container actual (variable, aleatoria por escenario)
 % ml:    [kg] Masa total suspendida (depende de TLK): ml = Ms + (TLK?McX:0)
@@ -49,6 +50,8 @@ yh_max =  40.0;            % [m] Posición máxima de izaje
 vh_max_loaded   = 1.5;     % [m/s] Velocidad máx izaje con carga
 vh_max_unloaded = 3.0;     % [m/s] Velocidad máx izaje sin carga
 ah_max = 0.75;             % [m/s^2] Aceleración máxima izaje
+
+P_nom = 956150;           % [W] Potencia nominal
 
 %% ======================
 % CONTACTO CARGA – APOYO
@@ -141,6 +144,18 @@ h_vec = [1,2,3,4,5,1,2,3,4,5,1,4,1,2,0,0,0,0,0,0,0,0,1,5,20,10,5,4,10,15,4,4,8,0
 h_vec_saved = zeros(1,N_xt); % Utilizado para guardar estados de relieve
 
 x_LIDAR = 3;               % [m] Offset del sensor lidar respecto al carro hacia +xt
+
+%% ======================
+% PARÁMETROS CONTROLADOR IZAJE
+%% ======================
+
+zitta_h = 1;    % Puede tomar valores entre 0.707 y 1
+omega_h = 6;    % rad/s. Puede tomar valores entre 4 y 10 rad/s
+N_h = 10;         % Factor de separación. Puede tomar valores entre 5 y 10
+
+% Test filtro calculo masa
+tau_filtro = 0.5;
+alpha_filtro = Ts2 / (tau_filtro + Ts2);
 
 %% ============================================================
 % VARIABLES (NO CONSTANTES) – TOMADAS DE LAS ECUACIONES DEL MODELO

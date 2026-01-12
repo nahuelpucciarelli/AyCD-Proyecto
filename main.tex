@@ -396,7 +396,7 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     Nota: Se utiliza $\frac{dl}{dt}$ en lugar de $v_{ly}$ para considerar el estiramiento inducido por el balanceo ($\theta_l \neq 0$).
 
     \item \textbf{Longitud de cable desplegado:}
-    \begin{equation}
+    \begin{equation}\label{l_desplegado}
         \frac{d\,l_h(t)}{dt}
         = -\,\frac{r_{hd}}{2\,i_h}\,\omega_{hm}(t)
     \end{equation}
@@ -460,18 +460,12 @@ El sistema de control no recibe los ángulos directamente, sino que procesa esta
     \begin{equation}
         x_{enc}(t) = \theta_{tm}(t) \, \frac{r_{td}}{i_t}
     \end{equation}
-    Dado que en el bloque de accionamiento se calcula $x_{td}(t)$ integrando la velocidad del motor referida al tambor ($\omega_{tm} \, r_{td}/i_t$), se cumple la identidad:
-    \[ x_{enc}(t) \equiv x_{td}(t) \]
-    Por lo tanto, se utiliza la señal $x_{td}$ proveniente del subsistema de accionamiento como realimentación para el controlador.
-    \item \textbf{Encoder de Izaje:} El sensor mide el ángulo acumulado del motor de izaje, $\theta_{hm}(t)$. La conversión considera la reducción de la caja $i_h$, el radio del tambor $r_{hd}$ y el factor de aparejo (reeving) 2:1.
+
+    \item \textbf{Encoder de Izaje:} El sensor mide el ángulo acumulado del motor de izaje, $\theta_{hm}(t)$. Se asume que el sistema se inicializa (homing) tal que $\theta_{hm}=0$ corresponde al nivel del muelle ($y=0$). Dado que un giro positivo del motor reduce la longitud del cable ($l_h$) y por ende aumenta la altura de la carga ($y$), la señal de retroalimentación $y_{enc}(t)$ se obtiene mediante:
     \begin{equation}
-        l_{h,enc}(t) = \theta_{hm}(t) \, \frac{r_{hd}}{2 \, i_h}
+        y_{enc}(t) = \theta_{hm}(t) \, \left( \frac{r_{hd}}{2 \, i_h} \right)
     \end{equation}
-    Finalmente, la altura operativa se refiere al nivel del muelle ($y=0$):
-    \begin{equation}
-        y_{enc}(t) = Y_{t0} - l_{h,enc}(t)
-    \end{equation}
-    Se utiliza la señal $l_h$ proveniente del subsistema de accionamiento de izaje y se le aplica el offset geométrico $Y_{t0}$.
+    Esta señal representa la altura operativa de la carga.
 \end{enumerate}
 
 \subsubsection{Fines de Carrera}
@@ -493,7 +487,7 @@ La lógica de detección de límites se modela según la ubicación física desc
     \end{itemize}
     \item \textbf{Fines de Carrera de Izaje (Rotativos en Tambor):} Al estar acoplados mecánicamente al eje del tambor, estos sensores detectan la cantidad de cable desenrollado. No miden la posición real de la carga (que varía con el balanceo).
     \begin{itemize}
-        \item \textbf{Entrada:} Altura calculada por encoder $y_{enc}(t) = Y_{t0} - l_h(t)$.
+        \item \textbf{Entrada:} Altura calculada por encoder $y_{enc}(t)$.
         \item \textbf{Lógica de activación:}
         \begin{equation}
             FC_{h,\,\text{superior}} = 
@@ -778,6 +772,8 @@ Finalmente, se convierte la referencia de velocidad lineal a velocidad angular d
 \begin{equation}
     \omega_{ref}(k) = v_{ref}(k) \, \left( \frac{2 \, i_h}{r_{hd}} \right)
 \end{equation}
+
+Nota: Dado que una velocidad lineal positiva ($v_{ref} > 0$) implica ascenso, y un torque positivo del motor también implica ascenso, la conversión de referencia es directa (positiva). Sin embargo, la variable de estado del modelo $\dot{l}_h$ (\ref{l_desplegado}) representa la tasa de extensión del cable (positiva al bajar). Por lo tanto, debe invertirse para corresponder con la velocidad angular del motor (positiva al subir).
 
 
 \end{document}
