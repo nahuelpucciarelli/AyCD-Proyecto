@@ -1,28 +1,26 @@
-%% ============================================================
-% PROYECTO GLOBAL INTEGRADOR – AUTÓMATAS Y CONTROL DISCRETO (317)
+%% PROYECTO GLOBAL INTEGRADOR – AUTÓMATAS Y CONTROL DISCRETO
 % Modelo físico – Definición de constantes y variables
 % Grúa Portacontenedores STS (Carro – Izaje – Carga)
 %% ============================================================
-
 clear; clc;
 
-%% ======================
-% PARÁMETROS GENERALES
-%% ======================
+%% TIEMPOS DE MUESTREO
+
+Ts2 = 1e-3;                % [s] Nivel 2 – Control regulatorio
+Ts1 = 20e-3;               % [s] Nivel 1 – Control supervisor
+Ts0 = 20e-3;               % [s] Nivel 0 – Seguridad / Protección
+
+%% PARÁMETROS GENERALES
 
 g = 9.80665;               % [m/s^2] Aceleración gravitatoria estándar
 
-%% ======================
-% GEOMETRÍA DEL SISTEMA
-%% ======================
+%% GEOMETRÍA DEL SISTEMA
 
 Yt0 = 45.0;                % [m] Altura fija de poleas de izaje en el carro
 Hc  = 2.59;                % [m] Altura del container estándar ISO
 Wc  = 2.44;                % [m] Ancho del container estándar ISO
 
-%% ======================
-% MASAS
-%% ======================
+%% MASAS
 
 Ms     = 15000;            % [kg] Masa spreader + headblock (sin container)
 Mc_max = 50000;            % [kg] Masa máxima container cargado
@@ -32,18 +30,14 @@ M_base  = 32500;           % [kg] Carga base para curva de potencia
 % McX:   [kg] Masa del container actual (variable, aleatoria por escenario)
 % ml:    [kg] Masa total suspendida (depende de TLK): ml = Ms + (TLK?McX:0)
 
-%% ======================
-% LÍMITES OPERATIVOS – CARRO (eje x)
-%% ======================
+%% LÍMITES OPERATIVOS – CARRO (eje x)
 
 xt_min = -30.0;            % [m] Límite mínimo posición carro
 xt_max =  50.0;            % [m] Límite máximo posición carro
 vt_max =  4.0;             % [m/s] Velocidad máxima carro
 at_max =  0.80;            % [m/s^2] Aceleración máxima carro
 
-%% ======================
-% LÍMITES OPERATIVOS – IZAJE (eje y)
-%% ======================
+%% LÍMITES OPERATIVOS – IZAJE (eje y)
 
 yh_min = -20.0;            % [m] Posición mínima de izaje (y_h = Yt0 - l_h)
 yh_max =  40.0;            % [m] Posición máxima de izaje
@@ -53,17 +47,13 @@ ah_max = 0.75;             % [m/s^2] Aceleración máxima izaje
 
 P_nom = 956150;           % [W] Potencia nominal
 
-%% ======================
-% CONTACTO CARGA – APOYO
-%% ======================
+%% CONTACTO CARGA – APOYO
 
 Kcy = 1.8e9;               % [N/m] Rigidez de contacto vertical (compresión)
 bcy = 10.0e6;              % [N/(m/s)] Amortiguamiento vertical de contacto
 bcx = 1.0e6;               % [N/(m/s)] Fricción/arrastre horizontal en contacto
 
-%% ======================
-% CABLE DE IZAJE (parámetros unitarios)
-%% ======================
+%% CABLE DE IZAJE (parámetros unitarios)
 
 % OJO UNIDADES (según ecuación de la guía):
 % Khw(lh) = khwu / (2*lh + Lh0)  -> entonces khwu debe tener [N] (no [N/m])
@@ -72,9 +62,7 @@ khwu = 236e6;              % [N]     Parámetro de rigidez unitaria "escalado"
 bhwu = 150;                % [N/(m·s)] Amortiguamiento unitario por metro
 Lh0  = 110;                % [m] Longitud fija de cable (sin péndulo)
 
-%% ======================
-% ACCIONAMIENTO DE IZAJE
-%% ======================
+%% ACCIONAMIENTO DE IZAJE
 
 rhd = 0.75;                % [m] Radio del tambor de izaje
 J_hd_hEb = 3800;           % [kg·m^2] Inercia eje lento (tambor + freno emer.)
@@ -94,9 +82,7 @@ Thb_Max = 50e3;            % [N·m] Torque máx freno operación
 tau_hm = 1.0e-3;           % [s] Constante de tiempo modulador de torque (izaje)
 Thm_Max = 20e3;            % [N·m] Torque máximo motor izaje
 
-%% ======================
-% CARRO – MASA Y CABLE
-%% ======================
+%% CARRO – MASA Y CABLE
 
 Mt  = 30000;               % [kg] Masa equivalente del carro
 bt  = 90.0;                % [N/(m/s)] Fricción viscosa del carro
@@ -104,9 +90,7 @@ bt  = 90.0;                % [N/(m/s)] Fricción viscosa del carro
 Ktw = 480e3;               % [N/m] Rigidez total cable de carro
 btw = 3.0e3;               % [N/(m/s)] Amortiguamiento total cable de carro
 
-%% ======================
-% ACCIONAMIENTO DE CARRO
-%% ======================
+%% ACCIONAMIENTO DE CARRO
 
 rtd = 0.50;                % [m] Radio tambor carro
 Jtd = 1200;                % [kg·m^2] Inercia eje lento carro
@@ -123,17 +107,7 @@ Ttb_Max = 5.0e3;           % [N·m] Torque máx freno carro
 tau_tm = 1.0e-3;           % [s] Constante de tiempo modulador torque carro
 Ttm_Max = 4.0e3;           % [N·m] Torque máximo motor carro
 
-%% ======================
-% TIEMPOS DE MUESTREO
-%% ======================
-
-Ts2 = 1e-3;                % [s] Nivel 2 – Control regulatorio
-Ts1 = 20e-3;               % [s] Nivel 1 – Control supervisor
-Ts0 = 20e-3;               % [s] Nivel 0 – Seguridad / Protección
-
-%% ======================
-% PERFIL DE RELIEVE INICIAL
-%% ======================
+%% PERFIL DE RELIEVE INICIAL
 
 N_xt = floor((xt_max-xt_min)/Wc)+1;
 
@@ -145,9 +119,7 @@ h_vec_saved = zeros(1,N_xt); % Utilizado para guardar estados de relieve
 
 x_LIDAR = 3;               % [m] Offset del sensor lidar respecto al carro hacia +xt
 
-%% ======================
-% PARÁMETROS CONTROLADOR CAROO
-%% ======================
+%% PARÁMETROS CONTROLADOR CARRO
 
 a = 10*bt/Mt;
 Kf = it/rtd;
@@ -159,17 +131,20 @@ Ki = (a^2*(Mt+Kf*Kd))/Kf;
 
 Kx = a/3;
 
-%% ======================
-% PARÁMETROS CONTROLADOR IZAJE
-%% ======================
+%% PARÁMETROS CONTROLADOR IZAJE
 
 zitta_h = 1;    % Puede tomar valores entre 0.707 y 1
 omega_h = 6;    % rad/s. Puede tomar valores entre 4 y 10 rad/s
-N_h = 10;         % Factor de separación. Puede tomar valores entre 5 y 10
+N_h = 10;       % Factor de separación. Puede tomar valores entre 5 y 10
 
 % Test filtro calculo masa
 tau_filtro = 0.5;
 alpha_filtro = Ts2 / (tau_filtro + Ts2);
+
+%% CONDICIONES INICIALES
+
+
+
 
 %% ============================================================
 % VARIABLES (NO CONSTANTES) – TOMADAS DE LAS ECUACIONES DEL MODELO

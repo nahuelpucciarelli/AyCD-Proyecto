@@ -324,16 +324,16 @@ A diferencia del carro, el sistema de izaje cuenta con dos sistemas de frenado i
     \begin{equation} \label{eq:brake_hoist_op}
         T_{hb}(t) = 
         \begin{cases} 
-            0 & \text{si } BRK_h = 1 \text{ (Energizado/Abierto)} \\
-            -T_{hb\_Max} \, \tanh(b_{hb} \, \omega_{hm}(t)) & \text{si } BRK_h = 0 \text{ (Desenergizado/Cerrado)}
+            0 & \text{si } \textcolor{cyan}{BRK_h} = 1 \text{ (Energizado/Abierto)} \\
+            -T_{hb\_Max} \, \tanh(b_{hb} \, \omega_{hm}(t)) & \text{si } \textcolor{cyan}{BRK_h} = 0 \text{ (Desenergizado/Cerrado)}
         \end{cases}
     \end{equation}
     \item \textbf{Freno de Emergencia (Eje Lento):} Ubicado directamente sobre el tambor, actúa solo ante fallas críticas (Nivel 0 de Protección) o parada de emergencia.
     \begin{equation} \label{eq:brake_hoist_emg}
         T_{hEb}(t) = 
         \begin{cases} 
-            0 & \text{si } BRK_{hE} = 1 \text{ (Energizado/Abierto)} \\
-            -T_{hEb\_Max} \, \tanh(b_{hEb} \, \omega_{hd}(t)) & \text{si } BRK_{hE} = 0 \text{ (Desenergizado/Cerrado)}
+            0 & \text{si } \textcolor{cyan}{BRK_{hE}} = 1 \text{ (Energizado/Abierto)} \\
+            -T_{hEb\_Max} \, \tanh(b_{hEb} \, \omega_{hd}(t)) & \text{si } \textcolor{cyan}{BRK_{hE}} = 0 \text{ (Desenergizado/Cerrado)}
         \end{cases}
     \end{equation}
 \end{itemize}
