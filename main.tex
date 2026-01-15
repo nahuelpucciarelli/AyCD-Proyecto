@@ -521,113 +521,52 @@ El término $F_{coupling}(t)$ se considera una perturbación externa asociada al
 \end{equation}
 Por lo que se obtiene la función de transferencia:
 \begin{equation}
-    G_t(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}, \quad K_f = \frac{i_t}{r_{td}}
+    G_t(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t} \, , \, K_f = \frac{i_t}{r_{td}}
 \end{equation}
 El polo mecánico es $s_p = -\frac{b_t}{M_t}$, cercano al origen debido a la baja fricción. Esto implica una dinámica casi integradora, con respuesta natural lenta y poca amortiguación, por lo que el PID debe aportar amortiguamiento y ubicar los polos de lazo cerrado más alejados del origen para lograr rapidez y robustez.
 
-\subsubsection{Sintonía PID por asignación de polos}
-Se define el error $e_v(t) = v_t^\ast(t) - v_t(t)$ y la ley de control:
+\subsubsection{Diseño de lazo interno (PI de velocidad)}
+Se define el error $e_v(t) = v_t^\ast(t) - v_t(t)$ y la ley de control PI en tiempo continuo queda:
 \begin{equation}
-    T_{tm}^*(t) = K_p\,e_v(t) + K_i\,\int e_v(t)\,dt + K_d\,\frac{d e_v(t)}{dt}
+    T_{tm}^*(t) = K_{p,v}\,e_v(t) + K_{i,v}\,\int e_v(t)\,dt
 \end{equation}
-siendo $T_{tm}^*(t)$ la consigna saliente del controlador y que es dirigida hacia el actuador. Con realimentación unitaria, el polinomio característico resulta:
+En el dominio de Laplace, el controlador se expresa como:
 \begin{equation}
-    s\,(M_t\,s + b_t) + K_f\,\left(K_d\,s^2 + K_p\,s + K_i\right) = 0
+    C_t(s) = K_{p,v} + \frac{K_{i,v}}{s}
 \end{equation}
-equivalente a:
+Teniendo en cuenta la función de transferencia $G_t(s)$, y dado que la planta convierte torque en velocidad, la salida del lazo interno es $V_t(s)$ mientras que $T_{tm}^*(s)$ es la salida del controlador. Así, el lazo cerrado (por realimentación unitaria) resulta:
 \begin{equation}
-    (M_t + K_f\,K_d)\,s^2 + (b_t + K_f\,K_p)\,s + K_f\,K_i = 0
+    \frac{V_t(s)}{V_t^\ast(s)} = \frac{C_t(s)\,G_t(s)}{1 + C_t(s)\,G_t(s)} =
+    \frac{(K_{p,v}\,s + K_{i,v})\,K_f}{M_t\,s^2 + (b_t + K_f\,K_{p,v})\,s + K_f\,K_{i,v}}
 \end{equation}
-Se desea ubicar los polos del lazo cerrado a una década de rapidez respecto del polo mecánico, por lo que se adopta un polinomio deseado:
+El polinomio característico del lazo cerrado es entonces:
 \begin{equation}
-    \Delta_d(s) = (s + a)^2, \quad a = 10\,\frac{b_t}{M_t}
+    M_t\,s^2 + (b_t + K_f\,K_{p,v})\,s + K_f\,K_{i,v} = 0
 \end{equation}
-Igualando coeficientes se obtiene:
+Se impone un polinomio deseado de segundo orden:
 \begin{equation}
-    K_p = \frac{2\,a\,(M_t + K_f\,K_d) - b_t}{K_f}, \quad
-    K_i = \frac{a^2\,(M_t + K_f\,K_d)}{K_f}
+    P(s) = s^2 + 2\,\zeta_t\,\omega_{n,t}\,s + \omega_{n,t}^2
 \end{equation}
-La ganancia derivativa $K_d$ permite ajustar la inercia efectiva y el compromiso ruido--rapidez; una elección conservadora es $K_d = 0$, que conduce a un PI con:
+Igualando coeficientes con $M_t\,P(s)$ se obtienen las ganancias:
 \begin{equation}
-    K_p = \frac{2\,a\,M_t - b_t}{K_f}, \quad
-    K_i = \frac{a^2\,M_t}{K_f}
+    K_{p,v} = \frac{2\,\zeta_t\,\omega_{n,t}\,M_t - b_t}{K_f} \, , \,
+    K_{i,v} = \frac{\omega_{n,t}^2\,M_t}{K_f}
 \end{equation}
+En este trabajo se adopta $\zeta_t = 0.707$ y $\omega_{n,t} = 3$ rad/s para un compromiso entre rapidez y sobrepaso.
 
-\subsubsection{Generacion de consigna de velocidad desde posicion}
+\subsubsection{Diseño de lazo externo (P de posición)}
 Si se dispone de una consigna de posicion $x_t^\ast(t)$, una forma directa de obtener la referencia de velocidad es derivarla:
 \begin{equation}
     v_t^\ast(t) = \frac{d x_t^\ast(t)}{dt}
 \end{equation}
 En la practica se evita derivar referencias con escalones, por lo que se usa un generador de trayectoria (rampa o perfil trapezoidal) que respeta limites de velocidad y aceleracion, o bien un lazo externo proporcional:
 \begin{equation}
-    v_t^\ast(t) = \mathrm{sat}_{v_{t,\max}}\left(K_x\,\left(x_t^\ast(t) - x_t(t)\right)\right)
+    v_t^\ast(t) = \mathrm{sat}_{v_{t,\max}}\left(K_{p,x}\,\left(x_t^\ast(t) - x_t(t)\right)\right)
 \end{equation}
-con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_x$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad (tipicamente 3--10$\times$). Por ejemplo, si el lazo interno se ajusto con $a = 10\,b_t/M_t$, puede tomarse $K_x \approx a/3$ o $a/10$ y luego ajustar segun saturaciones y limites de aceleracion.
-
-\subsection{Control alternativo del carro con estructura en cascada}
-Para mantener coherencia con el esquema usado en el control de izaje, se adopta una arquitectura en cascada (Posición $\to$ Velocidad $\to$ Torque) y se diseña el lazo interno sobre la velocidad $v_t$, usando $T_{tm}$ como entrada de actuador.
-
-\subsubsection{Modelo del carro para control de velocidad}
-Partiendo de la ecuación de accionamiento del carro \eqref{accionamiento_carro}, y agrupando las perturbaciones mecánicas en un torque equivalente, se tiene:
+con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_{p,x}$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad (tipicamente 3--10$\times$), por lo que se selecciona:
 \begin{equation}
-    J_{eq,t}\,\frac{d \, \omega_{tm}(t)}{dt} + b_{eq,t}\,\omega_{tm}(t) = T_{tm}(t) - T_{dist}(t)
+    K_{p,x} = \frac{\omega_{n,t}}{N} \, , \, N \in [3,10]
 \end{equation}
-donde
-\begin{equation}
-    T_{dist}(t) = \underbrace{\frac{r_{td}}{i_t}\,F_{tw}(t)}_{\text{Carga en el cable}}
-    - \underbrace{T_{tb}(t,\textcolor{cyan}{BRK_t})}_{\text{Freno}}
-    + \Delta_{model}(t)
-\end{equation}
-Usando la relación cinemática $v_t(t) = \frac{r_{td}}{i_t}\,\omega_{tm}(t)$, la función de transferencia velocidad--torque queda:
-\begin{equation}
-    G_{vel,t}(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_t}{J_{eq,t}\,s + b_{eq,t}}, \quad K_t = \frac{r_{td}}{i_t}
-\end{equation}
-El polo mecánico resulta $P_{mec} = -b_{eq,t}/J_{eq,t}$.
-
-\subsubsection{Diseño del lazo interno (Control PI de velocidad)}
-Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
-\begin{equation}
-    C_{vel}(s) = K_p + \frac{K_i}{s}
-\end{equation}
-Con lazo unitario, el denominador del lazo cerrado es:
-\begin{equation}
-    J_{eq,t}\,s^2 + \left(b_{eq,t} + K_p K_t\right)s + K_i K_t
-\end{equation}
-Se iguala con un polinomio deseado de segundo orden:
-\begin{equation}
-    s^2 + 2\,\zeta\,\omega_n\,s + \omega_n^2
-\end{equation}
-obteniéndose las ganancias:
-\begin{equation}
-    K_p = \frac{2\,\zeta\,\omega_n\,J_{eq,t} - b_{eq,t}}{K_t}, \quad
-    K_i = \frac{\omega_n^2\,J_{eq,t}}{K_t}
-\end{equation}
-La selección de $\omega_n$ se realiza en función del ancho de banda deseado del carro y las limitaciones de aceleración; típicamente se toma $\zeta \in [0.7,1]$ para evitar sobrepasos.
-
-El torque de referencia en tiempo discreto es:
-\begin{equation}
-    T_{tm}^\ast(k) = K_p\,e_v(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2}\left[e_v(j) + e_v(j-1)\right]
-\end{equation}
-con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
-
-\subsubsection{Compensación de fricción (Feedforward)}
-Para reducir el esfuerzo integral, se puede sumar una pre-alimentación viscosa:
-\begin{equation}
-    T_{ff}(k) = b_{eq,t}\,\omega_{tm}^\ast(k) \quad \Rightarrow \quad
-    T_{tm}^\ast(k) = T_{PI}(k) + T_{ff}(k)
-\end{equation}
-Si se dispone de un modelo de fricción Coulomb, puede añadirse un término $\pm T_c$ según el sentido de marcha.
-
-\subsubsection{Diseño del lazo externo (Control P de posición)}
-Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
-\begin{equation}
-    \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
-\end{equation}
-Se utiliza un controlador proporcional:
-\begin{equation}
-    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
-\end{equation}
-lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
 
 
 \subsection{Control de Izaje de la Carga}
