@@ -710,21 +710,35 @@ Esto corresponde a un sistema de primer orden con una frecuencia de corte (ancho
 \end{equation}
 Esto asegura que el lazo de velocidad tenga tiempo suficiente para reaccionar a los comandos del lazo de posición sin introducir oscilaciones, al mismo tiempo que mantiene una respuesta ágil en la posición de la carga.
 
-La ley de control se ejecuta secuencialmente en cada instante de muestreo $k$, incorporando la saturación física del mecanismo y la adaptación cinemática necesaria.
-
-1. \textit{Cálculo del Error y Demanda Proporcional:}
+La ley de control se ejecuta secuencialmente en cada instante de muestreo $k$:
 \begin{equation}
-    e_{pos}(k) = y_{ref}(k) - y_{enc}(k)
+    v_{h, \, cmd}(k) = K_{pos} \, e_{pos}(k)
 \end{equation}
+Donde $e_{pos}(k) = y_{ref}(k) - y_{h,\,enc}(k)$. Se convierte la referencia de velocidad lineal a velocidad angular del motor considerando la geometría del tambor y el aparejo, para ser ingresada al lazo interno PI.
 \begin{equation}
-    v_{demanda}(k) = K_{pos} \, e_{pos}(k)
+    \omega_{ref}(k) = v_{h,\,cmd}(k) \left( \frac{2 \, i_h}{r_{hd}} \right)
 \end{equation}
 
-2. \textit{Saturación de Velocidad (Límite Operativo):}
+\subsection{Generación de Trayectoria (Perfil de Movimiento)}
+Dado que tanto el sistema del carro como del izaje poseen límites estrictos de seguridad (velocidades máximas variables y aceleraciones acotadas) no es viable ingresar referencias de tipo escalón a los controladores.
+
+Se diseña un bloque que procesa la consigna de posición del supervisor y genera perfiles cinemáticos suaves en tiempo real. Este módulo asegura que:
+\begin{enumerate}
+    \item La velocidad de referencia nunca supere el límite máximo permitido.
+    \item La aceleración se mantenga dentro del rango seguro.
+    \item Se minimice el jerk para evitar la excitación de oscilaciones en el cable.
+\end{enumerate}
+El generador entrega la curva de posición ideal ($x_{ref}$ o $y_{ref}$) al lazo de control.
+
+
+
+
+\newpage
+\section{Descartes y Opcionales}
+\subsection{Saturación de Velocidad (Límite Operativo):}
 La demanda de velocidad se limita dinámicamente para respetar la curva de potencia constante del motor. A diferencia de un límite fijo, el valor de saturación $v_{h,limit}$ varía en función de la carga izada estimada ($\hat{m}_l$).
 
 Se define una masa base $M_{base}$ como el punto de quiebre a partir del cual el accionamiento ya no puede sostener la velocidad máxima sin exceder su potencia nominal.
-
 \begin{equation}
     v_{h,limit}(\hat{m}_l) = 
     \begin{cases} 
@@ -732,40 +746,15 @@ Se define una masa base $M_{base}$ como el punto de quiebre a partir del cual el
         \frac{P_{h,nom}}{\hat{m}_l \, g} & \text{si } \hat{m}_l \ge M_{base}
     \end{cases}
 \end{equation}
-
 Donde los parámetros del sistema son:
 \begin{itemize}
     \item $P_{h,nom} = 956.15 \text{ kW}$: Potencia nominal disponible para izaje.
     \item $v_{h,max} = 3.0 \text{ m/s}$: Velocidad máxima mecánica.
     \item $M_{base} = 32\,500 \text{ kg}$: Carga límite para operación a velocidad máxima.
 \end{itemize}
-
 Finalmente, la ley de control saturada que se envía como referencia al lazo interno resulta:
 \begin{equation}
-    v_{ref}(k) = \text{sat}\left( v_{demanda}(k), \, \pm v_{h,limit}(\hat{m}_l) \right)
+    v_{ref}(k) = \text{sat}\left( v_{h,\, cmd}(k), \, \pm v_{h,limit}(\hat{m}_l) \right)
 \end{equation}
-
-3. \textit{Adaptación Cinemática (Referencia al Lazo Interno):}
-Finalmente, se convierte la referencia de velocidad lineal a velocidad angular del motor considerando la geometría del tambor y el aparejo, para ser ingresada al lazo interno PI.
-\begin{equation}
-    \omega_{ref}(k) = v_{ref}(k) \, \left( \frac{2 \, i_h}{r_{hd}} \right)
-\end{equation}
-
-Nota: Dado que una velocidad lineal positiva ($v_{ref} > 0$) implica ascenso, y un torque positivo del motor también implica ascenso, la conversión de referencia es directa (positiva). Sin embargo, la variable de estado del modelo $\dot{l}_h$ (\ref{l_desplegado}) representa la tasa de extensión del cable (positiva al bajar). Por lo tanto, debe invertirse para corresponder con la velocidad angular del motor (positiva al subir).
-
-
-
-
-\subsection{Generación de Trayectoria (Perfil de Movimiento)}
-Dado que el sistema de izaje posee límites estrictos de seguridad —velocidad máxima variable según la carga y aceleración acotada para evitar daños estructurales— no es viable ingresar referencias de tipo escalón al controlador.
-
-Se introduce un bloque **Generador de Trayectoria (Curva-S)** que procesa la consigna de posición del supervisor y genera perfiles cinemáticos suaves en tiempo real. Este módulo asegura que:
-\begin{enumerate}
-    \item La velocidad de referencia nunca supere el límite dinámico calculado por la curva de potencia: $|v_{ref}| \le v_{lim}(\hat{m}_l)$.
-    \item La aceleración se mantenga dentro del rango seguro ($|a_{ref}| \le 0.75 \, \text{m/s}^2$).
-    \item Se minimice el \textit{Jerk} (cambio brusco de aceleración) para evitar la excitación de oscilaciones en el cable.
-\end{enumerate}
-
-El generador entrega la curva de posición ideal ($y_{ref}$) al lazo de control.
 
 \end{document}
