@@ -12,6 +12,9 @@
 _minted-*
 comandos_git.tex
 
+# Archivos extra
+BackupRodri/
+
 # EXCEPCIONES
 !comandos_git.pdf
 
@@ -23,3 +26,5 @@ Matlab/Simulink/slprj/
 Constantes.asv
 *.slxc
 *.autosave
+
+
