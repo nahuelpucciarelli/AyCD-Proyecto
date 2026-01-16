@@ -552,7 +552,7 @@ Igualando coeficientes con $M_t\,P(s)$ se obtienen las ganancias:
     K_{p,v} = \frac{2\,\zeta_t\,\omega_{n,t}\,M_t - b_t}{K_f} \, , \,
     K_{i,v} = \frac{\omega_{n,t}^2\,M_t}{K_f}
 \end{equation}
-En este trabajo se adopta $\zeta_t = 0.707$ y $\omega_{n,t} = 3$ rad/s para un compromiso entre rapidez y sobrepaso.
+En este trabajo se adopta $\zeta_t = 1$ y $\omega_{n,t} = 2$ rad/s para un compromiso entre rapidez y sobrepaso.
 
 \subsubsection{Diseño de lazo externo (P de posición)}
 Si se dispone de una consigna de posicion $x_t^\ast(t)$, una forma directa de obtener la referencia de velocidad es derivarla:
@@ -563,11 +563,10 @@ En la practica se evita derivar referencias con escalones, por lo que se usa un 
 \begin{equation}
     v_t^\ast(t) = \mathrm{sat}_{v_{t,\max}}\left(K_{p,x}\,\left(x_t^\ast(t) - x_t(t)\right)\right)
 \end{equation}
-con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_{p,x}$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad (tipicamente 3--10$\times$), por lo que se selecciona:
+con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_{p,x}$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad, por lo que se selecciona:
 \begin{equation}
     K_{p,x} = \frac{\omega_{n,t}}{N} \, , \, N \in [3,10]
 \end{equation}
-
 
 \subsection{Control de Izaje de la Carga}
 Para el control de la carga en el izaje, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
