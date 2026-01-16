@@ -506,7 +506,7 @@ El Nivel 2 corresponde al control regulatorio de las variables continuas del sis
 
 En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
 
-\subsection{Control PID de Traslación del Carro}
+\subsection{Control de Traslación del Carro}
 Se diseña un controlador PID para el movimiento de traslación del carro, tomando como variable medida la velocidad $v_t(t)$ y como señal de mando el torque del motor $T_{tm}(t)$. Usando la aproximación cuasiestática del tren mecánico, que relaciona la fuerza de tracción con el torque:
 \[
     F_{tw}(t) \approx \frac{i_t}{r_{td}}\,T_{tm}(t)
@@ -669,8 +669,49 @@ Se diseña un bloque que procesa la consigna de posición del supervisor y gener
 \end{enumerate}
 El generador entrega la curva de posición ideal ($x_{ref}$ o $y_{ref}$) al lazo de control.
 
+\subsection{Control del Balanceo de la Carga (Anti-Sway)}
+Para mitigar las oscilaciones de la carga, se implementa una estrategia de amortiguamiento activo mediante inyección de velocidad correctiva. A diferencia de los métodos que actúan sobre el torque, esta estrategia modifica la referencia de velocidad enviada al lazo interno del carro, permitiendo que el sistema de seguridad (limitadores de velocidad y aceleración) permanezca activo y protegiendo la integridad mecánica.
 
+\subsubsection{Estrategia de Ganancia Programada}
+La dinámica del péndulo formado por la carga no es constante; su frecuencia natural $\omega_n$ varía inversamente con la raíz cuadrada de la longitud del cable de izaje ($l_h$):
+\begin{equation}
+    \omega_n(l_h) = \sqrt{\frac{g}{l_h}}
+\end{equation}
 
+Un controlador con ganancia fija sería ineficiente: resultaría sub-amortiguado con el cable corto (oscilaciones rápidas) o sobre-amortiguado con el cable largo (respuesta lenta).
+
+Para solucionar esto, se implementa una ley de control con ganancia programada (Gain Scheduling). El objetivo es imponer un coeficiente de amortiguamiento crítico ($\zeta = 1$) en todo el rango de operación. La corrección de velocidad ($v_{sway}$) se calcula como:
+
+\begin{equation}
+    v_{sway}(t) = K_{sway}(l_h) \, \theta_l(t)
+\end{equation}
+
+Donde la ganancia variable $K_{sway}$ se adapta en tiempo real según la altura de la carga para mantener la condición de $\zeta \approx 1$:
+\begin{equation}
+    K_{sway}(l_h) = 2 \, \zeta \, \omega_n \, l_h \approx 2 \, \sqrt{g \, l_h}
+\end{equation}
+
+Esta señal se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
+
+\subsubsection{Optimización del Lazo de Posición}
+
+En el control del carro, existe un compromiso fundamental entre la rapidez de respuesta (productividad) y la capacidad de amortiguar el balanceo (estabilidad).
+\begin{itemize}
+    \item Una ganancia proporcional alta ($K_{pos}$ grande) reduce el tiempo de viaje, pero vuelve al sistema ``rígido'', impidiendo que el controlador Anti-Sway realice las pequeñas correcciones necesarias al llegar al destino.
+    \item Una ganancia baja permite un excelente control del balanceo, pero hace que la aproximación final sea excesivamente lenta.
+\end{itemize}
+
+Para resolver este conflicto, se implementa una ganancia $K_{pos}$ no lineal variable en función del error de posición ($e_{pos}$):
+\begin{equation}
+    K_{pos}\,e_{pos} = 
+    \begin{cases} 
+        K_{crucero} & \text{si } |e_{pos}| > D_{umbral} \quad (\text{Lejos: alta agresividad}) \\
+        K_{llegada} & \text{si } |e_{pos}| \le D_{umbral} \quad (\text{Cerca: alta suavidad}) 
+    \end{cases}
+\end{equation}
+Cuando el error es grande, se utiliza una ganancia alta ($K_{crucero} \approx 3.0$) para minimizar el error de arrastre y seguir fielmente el perfil de velocidad trapezoidal. Al acercarse al objetivo (ej. $< 5$ m), la ganancia disminuye suavemente ($K_{llegada} \approx 0.5$). Esto reduce la ``rigidez'' del lazo de posición, otorgando mayor autoridad al controlador Anti-Sway para realizar maniobras de retroceso o avance fino, necesarias para detener la carga con ángulo residual nulo.
+
+Esta estrategia híbrida permite cumplir simultáneamente con los requisitos de tiempo de ciclo corto y precisión en la estabilización de la carga.
 
 \newpage
 \section{Descartes y Opcionales}
