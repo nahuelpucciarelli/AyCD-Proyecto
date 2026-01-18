@@ -206,6 +206,18 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \item Posición lineal del tambor: $x_{td}(t) = \int v_{td}(t) \, dt$
 \end{itemize}
 
+\subsubsection{Modulador de Torque del Carro}
+El accionamiento de traslación del carro se modela con una dinámica de primer orden caracterizada por la constante de tiempo $\tau_{tm}$. La ecuación diferencial que rige el torque $T_{tm}(t)$ es:
+\begin{equation}
+    \tau_{tm} \, \frac{dT_{tm}(t)}{dt} = T_{tm,\,Lim}^*(t) - T_{tm}(t)
+    \label{eq:modulador_carro}
+\end{equation}
+La consigna de referencia $T_{tm}^*(k \, T_{s2})$, proveniente del controlador discreto, es limitada por saturación simétrica para no exceder los límites físicos del motor del carro $T_{tm\_Max}$:
+\begin{equation}
+    T_{tm,\,Lim}^*(t) = \min\left(+T_{tm,\,Max}, \max\left(-T_{tm,\,Max}, T_{tm}^*(k \, T_{s2})\right)\right)
+\end{equation}
+Se asume un límite de torque constante $T_{tm,\,Max}$ en todo el rango operativo, sin considerar efectos de debilitamiento de campo en las ecuaciones.
+
 \subsection{Subsistema de Izaje (Hoist)}
 El sistema de izaje controla la elevación de la carga mediante un mecanismo de tambor accionado por motor eléctrico, con un sistema de cableado (reeving) que introduce una relación de transmisión mecánica adicional.
 \begin{figure}[H]
@@ -415,8 +427,20 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \[ \theta_l = \text{atan2}\left(\frac{x_l(t) - x_t(t)}{Y_{t0} - y_l(t)}\right) \]
 \end{itemize}
 
-\subsubsection{Modulador de Torque del Motor de Izaje}
-
+\subsubsection{Modulador de Torque de Izaje}
+El comportamiento dinámico del accionamiento eléctrico del mecanismo de izaje se modela como un sistema de primer orden LTI, que representa la respuesta del lazo de control de corriente del variador. La evolución temporal del torque electromecánico $T_{hm}(t)$ se describe mediante la ecuación diferencial:
+\begin{equation}
+    \tau_{hm} \, \frac{dT_{hm}(t)}{dt} = T_{hm,\,Lim}^*(t) - T_{hm}(t)
+    \label{eq:modulador_izaje}
+\end{equation}
+Donde $\tau_{hm}$ es la constante de tiempo del accionamiento. La señal de referencia efectiva $T_{hm,\,Lim}^*(t)$ proviene de la consigna de control discretizada, la cual es sometida a una limitación de seguridad instantánea para proteger el motor. Esta saturación considera tanto el torque máximo nominal como la reducción de capacidad por debilitamiento de campo a altas velocidades:
+\begin{equation}
+    T_{hm,\,Lim}^*(t) = \min\left(+T_{hm,\,Max}, \max\left(-T_{hm,\,Max}, T_{hm}^*(k \, T_{s2})\right)\right)
+\end{equation}
+\begin{equation}
+    T_{hm,\,Max} = T_{hm,\,MAX} \, \min\left(1, \left(\frac{\omega_{hm,\,RATED}}{\omega_{hm}(t)}\right)^2\right)
+\end{equation}
+La última ecuación modela la región de field weakening, donde el torque máximo disponible disminuye cuadráticamente cuando la velocidad del motor $\omega_{hm}(t)$ supera su velocidad nominal $\omega_{hm,\,RATED}$.
 
 \subsection{Perfil 2D de Obstáculos}
 El carro cuenta con un sistema de sensado LIDAR (escaner láser infrarojo 1D) para relevar el perfil topográfico de obstáculos $y_{c0}$ en el área de operación. Este perfil define la superficie efectiva con la que puede interactuar la carga suspendida (spreader + contenedor). El sensor está colocado en el carro, $3$m hacia adelante del spreader, y mide la distancia vertical instantánea desde el carro en movimiento hasta la pila de obstáculos.
@@ -679,21 +703,92 @@ La dinámica del péndulo formado por la carga no es constante; su frecuencia na
 \begin{equation}
     \omega_n(l_h) = \sqrt{\frac{g}{l_h}}
 \end{equation}
-
 Un controlador con ganancia fija sería ineficiente: resultaría sub-amortiguado con el cable corto (oscilaciones rápidas) o sobre-amortiguado con el cable largo (respuesta lenta).
 
 Para solucionar esto, se implementa una ley de control con ganancia programada (Gain Scheduling). El objetivo es imponer un coeficiente de amortiguamiento crítico ($\zeta = 1$) en todo el rango de operación. La corrección de velocidad ($v_{sway}$) se calcula como:
-
 \begin{equation}
     v_{sway}(t) = K_{sway}(l_h) \, \theta_l(t)
 \end{equation}
-
 Donde la ganancia variable $K_{sway}$ se adapta en tiempo real según la altura de la carga para mantener la condición de $\zeta \approx 1$:
 \begin{equation}
     K_{sway}(l_h) = 2 \, \zeta \, \omega_n \, l_h \approx 2 \, \sqrt{g \, l_h}
 \end{equation}
-
 Esta señal se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
+
+
+
+
+\subsection{Diseño del Controlador de Balanceo (Sway Control) (REHACER)}
+El objetivo es diseñar un controlador que amortigüe las oscilaciones de la carga ($\theta$) modulando la velocidad del carro ($v_t$). Se parte del modelo dinámico no lineal obtenido mediante Euler-Lagrange.
+
+\subsubsection{Modelo Dinámico y Linealización}
+
+Las ecuaciones de movimiento acopladas del sistema carro-péndulo (Ec. 87 de la memoria de cálculo) presentan fuertes no linealidades. Para el diseño del controlador, se linealiza el sistema alrededor del punto de operación de equilibrio vertical estable:
+\begin{equation}
+    \mathbf{x}_{op} = [x_t, v_t, \theta, \omega]^T = [x_0, 0, 0, 0]^T
+\end{equation}
+
+Considerando pequeñas perturbaciones ($\sin \theta \approx \theta$, $\cos \theta \approx 1$, $\dot{\theta}^2 \approx 0$) y asumiendo que la dinámica del lazo de velocidad del carro es mucho más rápida que la del péndulo (se puede imponer $v_t$ directamente), la ecuación diferencial que rige la oscilación se simplifica a:
+
+\begin{equation}
+    l \cdot \ddot{\theta} + g \cdot \theta = -\dot{v}_t
+    \label{eq:pendulo_simplificado}
+\end{equation}
+
+Aplicando la Transformada de Laplace, obtenemos la función de transferencia que relaciona la velocidad del carro (entrada) con el ángulo de oscilación (salida):
+
+\begin{equation}
+    G_p(s) = \frac{\Theta(s)}{V_t(s)} = \frac{-s/l}{s^2 + \frac{g}{l}}
+\end{equation}
+
+\subsubsection{Estructura del Controlador LPV}
+
+Se propone un controlador de tipo **PD (Proporcional-Derivativo)** para modificar la referencia de velocidad del carro. La ley de control es:
+
+\begin{equation}
+    v_{sway}(t) = K_p(\xi) \cdot \theta(t) + K_d(\xi) \cdot \dot{\theta}(t)
+\end{equation}
+
+Donde las ganancias $K_p$ y $K_d$ no son fijas, sino que varían (Gain Scheduling) en función de los parámetros del sistema (longitud de cable $l$ y masa $m_l$).
+
+La función de transferencia en lazo cerrado, considerando la realimentación positiva necesaria para amortiguar (mover el carro en la dirección del balanceo), resulta en:
+
+\begin{equation}
+    1 + G_c(s)G_p(s) = 0 \implies s^2 + \frac{K_d}{l} s + \left( \frac{g}{l} + \frac{K_p}{l} \right) = 0
+\end{equation}
+
+\subsubsection{Cálculo de Ganancias (Sintonía)}
+
+Para garantizar un comportamiento estable y sin oscilaciones residuales, se iguala el polinomio característico obtenido con el de un sistema de segundo orden críticamente amortiguado ($\zeta = 1$):
+
+\begin{equation}
+    s^2 + \frac{K_d}{l} s + \frac{g + K_p}{l} \equiv s^2 + 2\zeta\omega_n s + \omega_n^2
+\end{equation}
+
+De donde se deduce la frecuencia natural del péndulo $\omega_n = \sqrt{g/l}$. Igualando término a término, obtenemos las ecuaciones analíticas para las ganancias programadas:
+
+\begin{equation}
+    \frac{K_d}{l} = 2\omega_n \implies K_d = 2 \cdot l \cdot \sqrt{\frac{g}{l}} = 2\sqrt{g \cdot l}
+\end{equation}
+
+\begin{equation}
+    \frac{g + K_p}{l} = \omega_n^2 = \frac{g}{l} \implies K_p = 0
+\end{equation}
+
+\textit{Nota de Diseño:} Matemáticamente, el término proporcional $K_p$ afecta la rigidez (frecuencia) y el derivativo $K_d$ afecta el amortiguamiento. Dado que la gravedad ya provee la rigidez necesaria para llevar $\theta \to 0$, el término $K_p$ teórico es cero o muy bajo. Sin embargo, para compensar la fricción del carro y retardos del actuador, se implementa:
+
+\begin{equation}
+    K_d(l) = 2 \cdot \sqrt{g \cdot l} \quad ; \quad K_p(l) \approx 0.1 \cdot K_d(l)
+\end{equation}
+
+Esta configuración LPV ajusta dinámicamente la agresividad del control a medida que la carga sube o baja, manteniendo el amortiguamiento constante en toda la operación.
+
+
+
+
+
+
+
 
 \newpage
 \section{Descartes y Opcionales}
