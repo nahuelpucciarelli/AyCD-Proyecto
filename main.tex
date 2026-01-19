@@ -695,94 +695,81 @@ Se diseña un bloque que procesa la consigna de posición del supervisor y gener
 \end{enumerate}
 El generador entrega la curva de posición ideal ($x_{ref}$ o $y_{ref}$) al lazo de control.
 
-\subsection{Control del Balanceo de la Carga (Anti-Sway)}
-Para mitigar las oscilaciones de la carga, se implementa una estrategia de amortiguamiento activo mediante inyección de velocidad correctiva. A diferencia de los métodos que actúan sobre el torque, esta estrategia modifica la referencia de velocidad enviada al lazo interno del carro, permitiendo que el sistema de seguridad (limitadores de velocidad y aceleración) permanezca activo y protegiendo la integridad mecánica.
+\subsection{Diseño del Controlador de Balanceo (Anti-Sway)}
+Para la implementación del sistema de control de oscilación de la carga, se ha optado por una estrategia de Control en Cascada Desacoplado, en lugar de un control centralizado basado en el modelo dinámico completo del carro (Lagrangiano). A continuación, se fundamenta esta decisión y se deduce la ley de control utilizada.
 
-\subsubsection{Estrategia de Ganancia Programada}
-La dinámica del péndulo formado por la carga no es constante; su frecuencia natural $\omega_n$ varía inversamente con la raíz cuadrada de la longitud del cable de izaje ($l_h$):
+\subsubsection{Estructura en Cascada Desacoplada}
+El sistema de la grúa STS posee dos dinámicas con escalas de tiempo claramente separadas:
+\begin{enumerate}
+    \item \textbf{Dinámica del Accionamiento (Lazo Interno):} El control de velocidad del motor del carro (implementado mediante un lazo PI de velocidad) tiene una respuesta rápida (tiempo de establecimiento $< 100$ ms).
+    \item \textbf{Dinámica del Péndulo (Lazo Externo):} La oscilación de la carga es un fenómeno lento, con periodos naturales de oscilación en el orden de los 5 a 15 segundos (dependiendo de la altura de izaje $l_h$).
+\end{enumerate}
+
+Bajo la hipótesis de que el lazo interno de velocidad está correctamente sintonizado, podemos asumir que la velocidad real del carro $v_t$ sigue a la referencia de velocidad $v_{ref}$ con una dinámica despreciable para los propósitos del balanceo:
 \begin{equation}
-    \omega_n(l_h) = \sqrt{\frac{g}{l_h}}
+    v_t(t) \approx v_{ref}(t)
 \end{equation}
-Un controlador con ganancia fija sería ineficiente: resultaría sub-amortiguado con el cable corto (oscilaciones rápidas) o sobre-amortiguado con el cable largo (respuesta lenta).
+Esta asunción permite desacoplar la dinámica del carro (masa $M_t$, fricción $b_t$) de la dinámica del péndulo. El controlador de balanceo no necesita conocer la masa del carro ni compensar su fricción, ya que el controlador de velocidad interno se encarga de rechazar esas perturbaciones automáticamente.
 
-Para solucionar esto, se implementa una ley de control con ganancia programada (Gain Scheduling). El objetivo es imponer un coeficiente de amortiguamiento crítico ($\zeta = 1$) en todo el rango de operación. La corrección de velocidad ($v_{sway}$) se calcula como:
+\subsubsection{Deducción de la Ley de Control}
+En un esquema controlado por velocidad, la derivada se produce de forma natural por la física del sistema.
+
+La ecuación linealizada del péndulo simple excitado por la aceleración del carro $\ddot{x}_t$ es:
 \begin{equation}
-    v_{sway}(t) = K_{sway}(l_h) \, \theta_l(t)
+    \ddot{\theta}_l + \frac{g}{l_h}\theta_l = -\frac{1}{l_h}\,\ddot{x}_t
+    \label{eq:pendulo}
 \end{equation}
-Donde la ganancia variable $K_{sway}$ se adapta en tiempo real según la altura de la carga para mantener la condición de $\zeta \approx 1$:
+Nuestra variable de control es la referencia de velocidad $v_{ref}$. Si definimos una ley de control proporcional al ángulo:
 \begin{equation}
-    K_{sway}(l_h) = 2 \, \zeta \, \omega_n \, l_h \approx 2 \, \sqrt{g \, l_h}
+    v_{sway} = K_{sway} \, \theta_l
+    \label{eq:ley_control}
 \end{equation}
-Esta señal se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
-
-
-
-
-\subsection{Diseño del Controlador de Balanceo (Sway Control) (REHACER)}
-El objetivo es diseñar un controlador que amortigüe las oscilaciones de la carga ($\theta$) modulando la velocidad del carro ($v_t$). Se parte del modelo dinámico no lineal obtenido mediante Euler-Lagrange.
-
-\subsubsection{Modelo Dinámico y Linealización}
-
-Las ecuaciones de movimiento acopladas del sistema carro-péndulo (Ec. 87 de la memoria de cálculo) presentan fuertes no linealidades. Para el diseño del controlador, se linealiza el sistema alrededor del punto de operación de equilibrio vertical estable:
+La aceleración resultante del carro será:
 \begin{equation}
-    \mathbf{x}_{op} = [x_t, v_t, \theta, \omega]^T = [x_0, 0, 0, 0]^T
+    \ddot{x}_t = \frac{d}{dt}(v_{sway}) = K_{sway} \, \dot{\theta}_l
 \end{equation}
-
-Considerando pequeñas perturbaciones ($\sin \theta \approx \theta$, $\cos \theta \approx 1$, $\dot{\theta}^2 \approx 0$) y asumiendo que la dinámica del lazo de velocidad del carro es mucho más rápida que la del péndulo (se puede imponer $v_t$ directamente), la ecuación diferencial que rige la oscilación se simplifica a:
-
+Sustituyendo esta expresión en la ecuación (\ref{eq:pendulo}):
 \begin{equation}
-    l \cdot \ddot{\theta} + g \cdot \theta = -\dot{v}_t
-    \label{eq:pendulo_simplificado}
+    \ddot{\theta}_l + \frac{g}{l_h} \, \theta_l = -\frac{1}{l_h} (K_{sway} \, \dot{\theta}_l)
 \end{equation}
-
-Aplicando la Transformada de Laplace, obtenemos la función de transferencia que relaciona la velocidad del carro (entrada) con el ángulo de oscilación (salida):
-
+Reordenando los términos para obtener la ecuación característica del sistema en lazo cerrado:
 \begin{equation}
-    G_p(s) = \frac{\Theta(s)}{V_t(s)} = \frac{-s/l}{s^2 + \frac{g}{l}}
+    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = 0
+    \label{eq:lazo_cerrado}
 \end{equation}
+Al inyectar una señal de velocidad proporcional al ángulo, la física del movimiento transforma esa señal en una aceleración proporcional a la velocidad angular. Esto introduce el término de amortiguamiento viscoso necesario en la ecuación diferencial sin necesidad de derivar numéricamente la señal angular del sensor, lo cual reduce la amplificación de ruido en el sistema.
 
-\subsubsection{Estructura del Controlador LPV}
-
-Se propone un controlador de tipo **PD (Proporcional-Derivativo)** para modificar la referencia de velocidad del carro. La ley de control es:
-
+\subsubsection{Sintonía y Gain Scheduling (LPV Simplificado)}
+Para garantizar un desempeño uniforme independientemente de la altura de la carga, se comparan los coeficientes de la ecuación (\ref{eq:lazo_cerrado}) con la ecuación canónica de un sistema de segundo orden:
 \begin{equation}
-    v_{sway}(t) = K_p(\xi) \cdot \theta(t) + K_d(\xi) \cdot \dot{\theta}(t)
+    s^2 + 2 \, \zeta \, \omega_n \, s + \omega_n^2 = 0
 \end{equation}
-
-Donde las ganancias $K_p$ y $K_d$ no son fijas, sino que varían (Gain Scheduling) en función de los parámetros del sistema (longitud de cable $l$ y masa $m_l$).
-
-La función de transferencia en lazo cerrado, considerando la realimentación positiva necesaria para amortiguar (mover el carro en la dirección del balanceo), resulta en:
-
+Donde $\omega_n = \sqrt{g/l_h}$ es la frecuencia natural del péndulo. Igualando el término de amortiguamiento:
 \begin{equation}
-    1 + G_c(s)G_p(s) = 0 \implies s^2 + \frac{K_d}{l} s + \left( \frac{g}{l} + \frac{K_p}{l} \right) = 0
+    \frac{K_{sway}}{l_h} = 2 \, \zeta \, \omega_n \implies K_{sway} = 2 \, \zeta \, l_h \, \sqrt{\frac{g}{l_h}}
+\end{equation}
+Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico ($\zeta = 1$):
+\begin{equation}
+    K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
 
-\subsubsection{Cálculo de Ganancias (Sintonía)}
+\subsubsection{Factor de Sintonía}
+La derivación anterior asume una respuesta instantánea del carro. En la realidad, el carro posee inercia y límites de aceleración que introducen un retardo de fase. Una ganancia teórica de $\zeta=1$ suele ser excesiva en grúas reales, provocando que el carro reaccione con retraso y exacerbe la oscilación en lugar de atenuarla.
 
-Para garantizar un comportamiento estable y sin oscilaciones residuales, se iguala el polinomio característico obtenido con el de un sistema de segundo orden críticamente amortiguado ($\zeta = 1$):
-
+Por ello, se introduce un factor de sintonía $\lambda$ (típicamente entre $0.3$ y $0.7$):
 \begin{equation}
-    s^2 + \frac{K_d}{l} s + \frac{g + K_p}{l} \equiv s^2 + 2\zeta\omega_n s + \omega_n^2
+    K_{sway}(l_h) = K_{teorico}(l_h) \, \lambda = 2 \,\lambda \, \sqrt{g \, l_h} \, \lambda
 \end{equation}
+Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
 
-De donde se deduce la frecuencia natural del péndulo $\omega_n = \sqrt{g/l}$. Igualando término a término, obtenemos las ecuaciones analíticas para las ganancias programadas:
+En las simulaciones realizadas, se determinó que un valor de ganancia $\lambda \approx 0.25 - 0.5$ ofrece el mejor compromiso entre estabilidad, suavidad en la aceleración del carro y tiempo de asentamiento de la carga.
 
-\begin{equation}
-    \frac{K_d}{l} = 2\omega_n \implies K_d = 2 \cdot l \cdot \sqrt{\frac{g}{l}} = 2\sqrt{g \cdot l}
-\end{equation}
-
-\begin{equation}
-    \frac{g + K_p}{l} = \omega_n^2 = \frac{g}{l} \implies K_p = 0
-\end{equation}
-
-\textit{Nota de Diseño:} Matemáticamente, el término proporcional $K_p$ afecta la rigidez (frecuencia) y el derivativo $K_d$ afecta el amortiguamiento. Dado que la gravedad ya provee la rigidez necesaria para llevar $\theta \to 0$, el término $K_p$ teórico es cero o muy bajo. Sin embargo, para compensar la fricción del carro y retardos del actuador, se implementa:
-
-\begin{equation}
-    K_d(l) = 2 \cdot \sqrt{g \cdot l} \quad ; \quad K_p(l) \approx 0.1 \cdot K_d(l)
-\end{equation}
-
-Esta configuración LPV ajusta dinámicamente la agresividad del control a medida que la carga sube o baja, manteniendo el amortiguamiento constante en toda la operación.
-
+El controlador implementado es un sistema LPV de estructura simplificada que:
+\begin{enumerate}
+    \item No requiere realimentación de la masa de la carga (gracias al control en cascada).
+    \item Utiliza realimentación directa del ángulo $\theta$ (la acción derivativa es implícita).
+    \item Adapta su ganancia proporcionalmente a $\sqrt{l_h}$ para mantener la estabilidad a diferentes alturas.
+\end{enumerate}
 
 
 
