@@ -447,16 +447,16 @@ El carro cuenta con un sistema de sensado LIDAR (escaner láser infrarojo 1D) pa
 
 Se puede discretizar la posicion del carro (y por lo tanto del spreader) en el rango $x_t \in [x_{t_{min}}, x_{t_{max}}]$ utilizando el ancho del contenedor $W_c$ como paso entre centros. Luego, la cantidad de posiciones discretas a lo largo de $x_t$:
 \begin{equation}
-    N_{x_t} = \text{floor}\left( \frac{x_{t_{max}} - x_{t_{min}}}{W_c} \right)+1
+    N_{x_t} = \text{floor}\left( \frac{x_{t_{max}} - x_{t_{min}}}{W_c} \right)
 \end{equation}
 
 Según la especificación se tiene que $x_{t_{min}}=-30\,$m (sobre el muelle) y $x_{t_{max}}=50\,$m (sobre el barco), y que $W_c=2.44\,$m (ancho de container estándar ISO), se obtiene que $N_{x_t} = 33$. Los posibles índices serán entonces:
 \begin{equation}
-    i = 1, 2, 3, \ldots, 33
+    i = 0, 1, 2, \ldots, 32
 \end{equation}
 Luego, la última posición discreta corresponde a:
 \begin{equation}
-    x_{33} = -30\,\text{m} + (33-1) \cdot 2.44\,\text{m} = 48.08\,\text{m}
+    x_{33} = -30\,\text{m} + (32) \cdot 2.44\,\text{m} = 48.08\,\text{m}
 \end{equation}
 Por lo que se verifica que el rango de discretización cubre todo el área de operación del carro sin exceder el límite de $x_{t_{max}}$.
 
