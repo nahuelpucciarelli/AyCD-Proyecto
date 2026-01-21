@@ -1,0 +1,182 @@
+================================================================================
+PROYECTO: CONTROL SUPERVISOR Y DE SEGURIDAD - GRÚA PÓRTICO
+CONTEXTO: Especificación para Stateflow (Simulink)
+================================================================================
+
+--------------------------------------------------------------------------------
+CHART 1: SISTEMA DE SEGURIDAD (NIVEL 0)
+--------------------------------------------------------------------------------
+OBJETIVO:
+Protección hard-stop. Este chart vigila los límites físicos y condiciones peligrosas.
+Su salida tiene prioridad absoluta sobre cualquier comando del Supervisor.
+
+ENTRADAS (INPUTS):
+1.  xt          : [double] Posición actual del Carro [m]
+2.  yh          : [double] Altura actual del Spreader [m]
+3.  vt          : [double] Velocidad del Carro [m/s]
+4.  vh          : [double] Velocidad de Izaje [m/s]
+5.  Fhw         : [double] Tensión del cable de izaje [N]
+6.  E_STOP      : [bool]   Botón de Parada de Emergencia (Físico)
+7.  TLK_Status  : [bool]   Estado real Twistlocks (0=Open, 1=Closed)
+8.  LIDAR_Gap   : [double] Distancia al obstáculo detectada (gap)
+
+PARÁMETROS (VARIABLES LOCALES/CONSTANTES):
+1.  xt_max      : 50.0  [m]
+2.  xt_min      : -30.0 [m]
+3.  yh_max      : 40.0  [m]
+4.  yh_min      : -20.0 [m]
+5.  vt_max      : 4.0   [m/s] (Margen seguridad: usaremos 4.2 para disparo)
+6.  vh_max_abs  : 3.0   [m/s] (Velocidad máx absoluta descargado)
+7.  F_max_safe  : (Ms + Mc_max)*g * 1.2  (20% sobrecarga permitida)
+8.  F_min_slack : 1000  [N] (Umbral detección cable flojo)
+
+SALIDAS (OUTPUTS):
+1.  Safe_Flag   : [bool]  1 = OK para operar, 0 = FALLA (Bloqueo general)
+2.  Emergency_Brk_H : [bool] 1 = Abrir, 0 = CERRAR INMEDIATO (Izaje)
+3.  Error_Code  : [int]   0=Ok, 1=LímiteX, 2=LímiteY, 3=Sobrepeso, 4=CableFlojo, 5=Velocidad
+
+LÓGICA DE ESTADOS (PASOS LÓGICOS):
+
+ESTADO: MONITOREO_ACTIVO (Paralelo)
+    |
+    |-- SUB-ESTADO: LIMITES_POSICION
+    |   SI (xt > xt_max) O (xt < xt_min) -> Error_Code = 1; Safe_Flag = 0;
+    |   SI (yh > yh_max) O (yh < yh_min) -> Error_Code = 2; Safe_Flag = 0;
+    |
+    |-- SUB-ESTADO: CARGA_CABLE
+    |   SI (Fhw > F_max_safe) -> Error_Code = 3; Safe_Flag = 0; (Sobrecarga)
+    |   SI (Fhw < F_min_slack) Y (yh > -19.0) -> Error_Code = 4; Safe_Flag = 0; (Cable Cortado/Flojo en aire)
+    |       NOTA: Ignorar cable flojo si yh está cerca del suelo (zona landing).
+    |
+    |-- SUB-ESTADO: VELOCIDAD
+    |   SI abs(vt) > (vt_max * 1.1) -> Error_Code = 5; Safe_Flag = 0;
+    |   SI abs(vh) > (vh_max_unloaded * 1.1) -> Error_Code = 5; Safe_Flag = 0;
+    |
+    |-- SUB-ESTADO: BOTONERA
+    |   SI (E_STOP == 1) -> Safe_Flag = 0; Emergency_Brk_H = 0;
+
+ESTADO: FALLA_CRITICA
+    Entrada: Se activa si Safe_Flag == 0.
+    Acción: Forzar todas las salidas de seguridad a 0 (Frenar todo mecánicamente).
+    Salida: Requiere Reset manual del operador para volver a MONITOREO.
+
+================================================================================
+
+--------------------------------------------------------------------------------
+CHART 2: CONTROL SUPERVISOR (NIVEL 1)
+--------------------------------------------------------------------------------
+OBJETIVO:
+Gestión de modos (Manual/Auto), generación de referencias de trayectoria y
+coordinación de subsistemas (Frenos de servicio, Twistlocks).
+
+ENTRADAS (INPUTS):
+1.  Safe_Flag_In : [bool]  Viene del Nivel 0. Si es 0, ir a STOP.
+2.  Joy_X        : [double] Joystick Carro (-1 a 1)
+3.  Joy_Y        : [double] Joystick Izaje (-1 a 1)
+4.  Btn_Auto     : [bool]   Pulsador Modo Automático
+5.  Btn_Manual   : [bool]   Pulsador Modo Manual
+6.  Btn_TLK      : [bool]   Pulsador Activar/Desactivar Twistlock
+7.  Fhw          : [double] Tensión cable (para detectar landing)
+8.  yh, xt       : [double] Feedbacks de posición
+9.  vh, vt       : [double] Feedbacks de velocidad
+
+PARÁMETROS INTERNOS:
+1.  vh_nom          : 1.5 [m/s]
+2.  vh_max_unloaded : 3.0 [m/s]
+3.  vt_max          : 4.0 [m/s]
+4.  Landing_Thresh  : 2000 [N] (Umbral de tensión para considerar apoyado)
+
+SALIDAS (OUTPUTS - A CONTROLADORES NIVEL 2):
+1.  ref_pos_x     : [double] Referencia absoluta X
+2.  ref_pos_y     : [double] Referencia absoluta Y
+3.  vel_limit_x   : [double] Límite dinámico velocidad X (Saturación externa)
+4.  vel_limit_y   : [double] Límite dinámico velocidad Y (Saturación externa)
+5.  Cmd_Freno_Op_H: [bool]   1=Abrir Freno Servicio Izaje, 0=Cerrar
+6.  Cmd_Freno_Op_T: [bool]   1=Abrir Freno Servicio Carro, 0=Cerrar
+7.  Cmd_TLK       : [bool]   1=Cerrar Twistlocks, 0=Abrir
+
+LÓGICA DE ESTADOS (ESTRUCTURA PARALELA - AND):
+
+----------------------------------------------------
+PARALLEL STATE A: GESTION_FRENOS (Handover Logic)
+----------------------------------------------------
+    Lógica independiente para Carro (T) e Izaje (H). Ejemplo para Izaje:
+
+    ESTADO: FRENO_CERRADO (Default)
+        Acción: Cmd_Freno_Op_H = 0;
+        Transición: SI (abs(ref_vel_y) > 0.01) -> Ir a PRE_APERTURA
+
+    ESTADO: PRE_APERTURA
+        Acción: Cmd_Freno_Op_H = 1; (El torque motor debe sostener carga aquí)
+        Transición: AFTER(0.2 sec) -> Ir a LIBERADO
+
+    ESTADO: LIBERADO (Operación Normal)
+        Acción: Cmd_Freno_Op_H = 1;
+        Transición: SI (abs(vh) < 0.05) Y (abs(ref_vel_y) == 0) -> Ir a PRE_CIERRE
+
+    ESTADO: PRE_CIERRE
+        Acción: Cmd_Freno_Op_H = 0;
+        Transición: AFTER(0.5 sec) -> Ir a FRENO_CERRADO
+
+----------------------------------------------------
+PARALLEL STATE B: MODO_OPERACION (Main Logic)
+----------------------------------------------------
+    ESTADO: STOP / ESPERA
+        Acción: ref_vel = 0; vel_limit = 0;
+        Transición:
+            SI (Btn_Manual) Y (Safe_Flag_In) -> Ir a MANUAL
+            SI (Btn_Auto)   Y (Safe_Flag_In) -> Ir a AUTOMATICO
+
+    ESTADO: MANUAL
+        Acción:
+            ref_pos_x = Integrar(Joy_X * vt_max)
+            ref_pos_y = Integrar(Joy_Y * vh_max_selector)
+            Donde vh_max_selector depende de la carga (Potencia Constante).
+        Sub-Lógica TLK:
+            SI (Btn_TLK) Y (Fhw < Landing_Thresh) -> Toggle Cmd_TLK
+            (Solo permite cambiar TLK si detecta carga apoyada/cable flojo)
+
+    ESTADO: AUTOMATICO (Secuenciador)
+        Variables Locales: Step_Index, Target_X, Target_Y
+
+        PASO 1: HOME (Subir seguro)
+            Target_Y = 30m; Target_X = xt_actual;
+            vel_limit_y = vh_nom;
+            Esperar hasta error < 0.1m
+
+        PASO 2: TRAVEL_TO_BIN (Ir al contenedor)
+            Target_X = Posición_Contenedor_Objetivo;
+            vel_limit_x = vt_max;
+
+        PASO 3: LOWER_APPROACH (Bajar rápido)
+            Target_Y = Altura_Contenedor + 2m;
+            vel_limit_y = vh_nom;
+
+        PASO 4: LANDING (Bajar lento)
+            Target_Y = Altura_Contenedor - 0.5m (Overdrive leve)
+            vel_limit_y = 0.2 m/s (Creep Speed);
+            Transición: SI (Fhw < Landing_Thresh) -> Contacto Detectado -> Stop
+
+        PASO 5: LOCK
+            Cmd_TLK = 1;
+            Esperar 1.0s
+
+        PASO 6: HOIST (Subir)
+            Target_Y = 30m;
+            vel_limit_y = vh_max_unloaded (o calculado por peso);
+
+        PASO 7: TRAVEL_TO_TRUCK (Ir al camión) ...
+        PASO 8: UNLOAD ...
+
+----------------------------------------------------
+PARALLEL STATE C: GESTION_CARGA (Potencia y Límites)
+----------------------------------------------------
+    Calcula dinámicamente los límites para los PID basado en la física.
+
+    Acción Constante:
+        SI (Cmd_TLK == 1) (Cargado):
+            vel_limit_y_phys = P_nom / (Ms + Mc_estimada * g)
+        SINO (Vacío):
+            vel_limit_y_phys = vh_max_unloaded
+
+        Salida Global: vel_limit_y = min(vel_limit_y_phys, vel_limit_sequence)
