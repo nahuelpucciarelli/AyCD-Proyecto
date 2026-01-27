@@ -113,3 +113,351 @@ CHECKLIST DE REQUISITOS - SISTEMA DE CONTROL DE GRÚA
 ================================================================================
 FIN DE CHECKLIST
 ================================================================================
+
+-------------------------------------------------------------------------
+Ahora vamos a llenar el vacío: la **Generación de Referencias de Posición** y la **Lógica de Frenos**.
+
+Como el PDF pide que el supervisor entregue **Posición ()** pero tú tienes Joysticks (Velocidad), debemos convertir tu Stateflow en un **Integrador Inteligente**.
+
+Aquí tienes el diseño detallado para completar tu diagrama. Debes agregar **2 Estados Paralelos (AND)** nuevos al lado de tu `MONITOREO_FISICO`.
+
+---
+
+### 1. Variables Nuevas a Definir (Model Explorer)
+
+Antes de dibujar, asegúrate de crear estas variables en el Stateflow (Add Data):
+
+**Inputs (Ya las tienes, solo verificando):**
+
+* `FALLA` (Viene del Nivel 0).
+* `Fhw` (Tensión cable, para Slack Rope).
+
+**Outputs (Nuevas):**
+
+* `x_ref` (Double): Referencia de posición para el Carro.
+* `y_ref` (Double): Referencia de posición para el Izaje.
+* `Brk_Cmd_T` (Bool): 1=Abrir Freno Carro.
+* `Brk_Cmd_H` (Bool): 1=Abrir Freno Izaje.
+
+**Local Data (Variables internas):**
+
+* `vx_cmd` (Double): Velocidad deseada Carro (intermedia).
+* `vy_cmd` (Double): Velocidad deseada Izaje (intermedia).
+* `dt` (Constant): Tu tiempo de muestreo del Stateflow (ej. `0.02` seg).
+
+---
+
+### 2. Estado Paralelo: `MAQUINA_ESTADOS`
+
+Este es el director de orquesta. Decide en qué modo estamos.
+
+```mermaid
+stateDiagram-v2
+    [*] --> STOP
+
+    state STOP {
+        entry: vx_cmd = 0; vy_cmd = 0;
+        entry: Brk_Cmd_T = 0; Brk_Cmd_H = 0; % Frenos Cerrados
+    }
+
+    STOP --> MANUAL : [Boton_Manual == 1 && FALLA == 0]
+    STOP --> AUTO : [Boton_Auto == 1 && FALLA == 0]
+
+    state MANUAL {
+        % Aquí leemos el Joystick y calculamos la velocidad deseada
+        % Llama a funciones de seguridad antes de asignar
+        during: vx_cmd = funcion_Joystick_Carro(Joy_CMD_X);
+        during: vy_cmd = funcion_Joystick_Izaje(Joy_CMD_Y, vh_lim, m_est, Fhw);
+        
+        % Lógica simple de frenos: Si quiero mover, abro freno
+        during: Brk_Cmd_T = (abs(Joy_CMD_X) > 0.1);
+        during: Brk_Cmd_H = (abs(Joy_CMD_Y) > 0.1);
+    }
+
+    state AUTO {
+        % Futuro: Aquí irá el generador de trayectoria automática
+        during: vx_cmd = 0; 
+        during: vy_cmd = 0;
+    }
+
+    state ERROR {
+        entry: vx_cmd = 0; vy_cmd = 0;
+        entry: Brk_Cmd_T = 0; Brk_Cmd_H = 0;
+    }
+
+    % TRANSICIÓN DE FALLA GLOBAL
+    MANUAL --> ERROR : [FALLA == 1]
+    AUTO --> ERROR : [FALLA == 1]
+    STOP --> ERROR : [FALLA == 1]
+    ERROR --> STOP : [FALLA == 0 && Boton_RESET == 1]
+
+```
+
+---
+
+### 3. Estado Paralelo: `INTEGRACION_POSICION`
+
+Aquí ocurre la magia. Este estado convierte la velocidad `vx_cmd` / `vy_cmd` en posición `x_ref` / `y_ref`, respetando los **Fines de Carrera Suaves (FC)** para que la referencia no se salga del mapa.
+
+**Código dentro del estado `during`:**
+
+```matlab
+% --- INTEGRACIÓN EJE X (CARRO) ---
+% Verificar Límites Suaves (Soft Limits) antes de integrar
+% Si toco límite derecho (FC_der) y quiero ir a la derecha (vx_cmd > 0) -> BLOQUEAR
+if (FC_der == 1 && vx_cmd > 0)
+    vx_real = 0;
+elseif (FC_izq == 1 && vx_cmd < 0)
+    vx_real = 0;
+else
+    vx_real = vx_cmd;
+end
+
+% Integración de Euler: Pos = Pos_anterior + Vel * dt
+x_ref = x_ref + vx_real * dt;
+
+
+% --- INTEGRACIÓN EJE Y (IZAJE) ---
+% Verificar Límites Suaves
+if (FC_sup == 1 && vy_cmd > 0) % Tope arriba
+    vy_real = 0;
+elseif (FC_inf == 1 && vy_cmd < 0) % Tope abajo
+    vy_real = 0;
+else
+    vy_real = vy_cmd;
+end
+
+% Integración
+y_ref = y_ref + vy_real * dt;
+
+```
+
+---
+
+### 4. Funciones Internas (MATLAB Functions dentro de Stateflow)
+
+Para no ensuciar el diagrama, crea estas funciones abajo o dentro del chart.
+
+**Función A: `funcion_Joystick_Carro(joy)**`
+
+```matlab
+function v_out = funcion_Joystick_Carro(joy)
+    V_MAX_CARRO = 4.0; % m/s
+    DEAD_ZONE = 0.1;
+    
+    if abs(joy) < DEAD_ZONE
+        v_out = 0;
+    else
+        v_out = joy * V_MAX_CARRO;
+    end
+end
+
+```
+
+**Función B: `funcion_Joystick_Izaje(joy, v_lim, masa, tension)**`
+*Aquí aplicamos todos los requisitos del PDF (Slack Rope, Sobrecarga, Potencia Constante).*
+
+```matlab
+function v_out = funcion_Joystick_Izaje(joy, v_lim_potencia, masa, tension)
+    % 1. Zona Muerta
+    if abs(joy) < 0.1
+        v_out = 0;
+        return;
+    end
+    
+    % 2. Límite Base por Potencia (Calculado en tu bloque MONITOREO)
+    v_req = joy * v_lim_potencia;
+    
+    % 3. Protección de Sobrecarga (Requisito PDF)
+    M_MAX_PERMITIDA = 53000; % 50t + margen
+    if (masa > M_MAX_PERMITIDA)
+        if (joy > 0) 
+            v_req = 0; % Prohibido subir
+        else
+            v_req = max(v_req, -0.3); % Bajar muy lento (10% de 3m/s)
+        end
+    end
+    
+    % 4. Detección Cable Flojo (Slack Rope) (Requisito PDF)
+    TENSION_MINIMA = 500; % Newtons (Ajustar según tu simulación)
+    if (tension < TENSION_MINIMA)
+        if (joy > 0)
+            % Si cable flojo y quiero subir: Velocidad de tensado suave
+            v_req = min(v_req, 0.2); 
+        end
+        % Si quiero bajar con cable flojo, dejo que baje (para posar spreader)
+    end
+    
+    v_out = v_req;
+end
+
+```
+
+### Resumen de la Implementación
+
+1. Mantén tu bloque `MONITOREO_FISICO` a la izquierda.
+2. Crea un estado paralelo central `MAQUINA_ESTADOS` que maneje el flujo Manual/Auto/Error.
+3. Crea un estado paralelo derecho `INTEGRACION` que sume `x_ref += v * dt`.
+4. Copia las funciones de lógica (Joystick, límites) en funciones gráficas o MATLAB functions dentro del chart.
+
+Con esto, tu supervisor recibe Joysticks, procesa seguridad (Cable flojo, límites, sobrecarga) y entrega **Posición** suave a tus controladores en cascada. Además, genera los comandos de **Freno**.
+
+-------------------------------------------------------------------------
+En robótica industrial se llama **Planificación de Trayectoria por "Waypoints" (Puntos de Paso)** con **Blending (Mezcla/Suavizado)**.
+
+No hace falta calcular una ecuación polinómica compleja () para generar la curva. La forma más robusta y rápida para una grúa portuaria (y fácil de hacer en Stateflow) es definir una **"Caja de Seguridad"** y dejar que tus generadores de Curva-S (que ya tienes) se encarguen de suavizar las esquinas, creando esa curva natural.
+
+Aquí te explico cómo desarrollarlo paso a paso dentro de tu estado `AUTO`.
+
+---
+
+### 1. El Concepto: La "Caja de Seguridad" Dinámica
+
+En lugar de una curva fija, tu algoritmo debe calcular **3 valores clave** basados en el LIDAR antes de empezar a moverse:
+
+1. ****: Dónde quieres dejar el contenedor.
+2. ****: A qué altura (suelo, camión, barco).
+3. ** (La Clave)**: Es la altura máxima del obstáculo más alto que hay en el camino entre tu posición actual y el destino, más un margen de seguridad (ej. 2 metros).
+
+Tu trayectoria ideal se compone conceptualmente de 3 movimientos, pero el truco para que sea **"veloz y curvo"** es **solaparlos**.
+
+### 2. Procesamiento del LIDAR (Entrada de Obstáculos)
+
+Asumo que tu entrada de LIDAR es un vector o matriz con alturas. Antes de moverte, en el estado de planificación (`PLANNING`), debes escanear esa matriz.
+
+**Lógica dentro de Stateflow (o Matlab Function llamada desde ahí):**
+
+```matlab
+function H_safe = calcular_altura_segura(X_actual, X_target, Obstaculos_XY, Margen)
+    % 1. Definir rango de barrido
+    x_min = min(X_actual, X_target);
+    x_max = max(X_actual, X_target);
+    
+    % 2. Buscar el obstáculo más alto SOLO en ese trayecto
+    h_max_ruta = 0;
+    
+    % (Suponiendo que Obstaculos_XY es una lista [x1, y1; x2, y2...])
+    for i = 1:length(Obstaculos_XY)
+        obs_x = Obstaculos_XY(i, 1);
+        obs_y = Obstaculos_XY(i, 2);
+        
+        % Si el obstáculo está en mi camino
+        if (obs_x >= x_min && obs_x <= x_max)
+            if (obs_y > h_max_ruta)
+                h_max_ruta = obs_y;
+            end
+        end
+    end
+    
+    % 3. Sumar margen y altura del propio contenedor + spreader
+    % (Importante: H_safe es la altura a la que debe ir el Spreader para no chocar)
+    altura_contenedor = 2.6; % aprox
+    H_safe = h_max_ruta + altura_contenedor + Margen;
+end
+
+```
+
+---
+
+### 3. La Máquina de Estados "Optimizada" (Generación de Curva)
+
+Para lograr esa curva suave y tiempo mínimo, no hagas movimientos secuenciales (). Usa **Disparadores por Umbral (Triggers)**.
+
+Dentro de tu estado `AUTO` en Stateflow, crea esta sub-máquina:
+
+#### A. Estado `PLANIFICAR`
+
+* **Acción:** Ejecuta la función `calcular_altura_segura`.
+* **Salida:** Fija los objetivos finales.
+* **Transición:** Inmediata a `INICIO_IZAJE`.
+
+#### B. Estado `INICIO_IZAJE` (Subir a toda velocidad)
+
+* **Orden:** `y_ref = H_safe`. (El carro `x_ref` se queda quieto o mantiene su pos).
+* **El Truco de la Curva (Smart Trigger):**
+* No esperes a llegar a .
+* Si tu altura actual  (Altura del obstáculo **inmediato** + Margen), ¡ya puedes empezar a mover el carro!
+
+
+* **Transición a `VIAJE_X`:** `[y_real > (Obstaculo_Cercano + 2m)]`.
+
+#### C. Estado `VIAJE_SIMULTANEO` (La Diagonal)
+
+Aquí es donde se forma la curva.
+
+* **Orden:** `y_ref = H_safe` (Sigues subiendo si falta) **Y** `x_ref = X_dest`.
+* Como el carro empieza a acelerar mientras el izaje termina de subir, la trayectoria física resultante es una **curva suave** en el aire.
+* **Transición a `DESCENSO`:** Cuando estemos llegando en X.
+* `[abs(X_dest - x_real) < Distancia_Frenado_X]`.
+
+
+
+#### D. Estado `DESCENSO_FINAL`
+
+* **Orden:** `x_ref = X_dest` **Y** `y_ref = Y_dest`.
+* El carro estará frenando suavemente mientras el izaje empieza a bajar. Otra curva suave de llegada.
+
+---
+
+### 4. Implementación en tu Diagrama Stateflow
+
+Modifica tu estado `AUTO` para que tenga esta lógica interna:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PLANIFICAR
+
+    state PLANIFICAR {
+        entry: H_viaje = calc_H_Lidar(x_ini, x_fin);
+    }
+    PLANIFICAR --> SUBIENDO
+
+    state SUBIENDO {
+        % Objetivo: Ir a altura segura
+        entry: y_ref_target = H_viaje;
+        entry: x_ref_target = x_inicial; % Mantiene X
+    }
+    
+    % TRANSICIÓN "EARLY START" (Inicio Temprano)
+    % Apenas superamos el peligro inmediato, lanzamos el carro
+    SUBIENDO --> CRUCERO : [y_real > H_viaje * 0.9] 
+    % (O usar lógica más fina chequeando el obstáculo adyacente)
+
+    state CRUCERO {
+        % Movimiento simultáneo (Diagonal)
+        entry: y_ref_target = H_viaje;
+        entry: x_ref_target = x_final;
+    }
+
+    % TRANSICIÓN "EARLY DESCENT" (Bajada Anticipada)
+    % Apenas estamos cerca del target X, empezamos a bajar
+    CRUCERO --> BAJANDO : [abs(x_final - x_real) < 5.0]
+
+    state BAJANDO {
+        entry: y_ref_target = y_final;
+        entry: x_ref_target = x_final;
+    }
+
+    BAJANDO --> FIN : [Error_X < 0.1 && Error_Y < 0.1]
+
+```
+
+### 5. ¿Cómo se conecta esto con lo que ya tienes?
+
+Tú ya tienes un bloque `INTEGRACION_POSICION` que recibe `vx_cmd` y `vy_cmd` (o referencias directas si cambiaste la lógica a posición).
+
+* Si usas el **Generador S-Curve Externo** (lo ideal):
+* El Stateflow solo debe actualizar las variables `Target_X` y `Target_Y`.
+* El bloque S-Curve se encarga de ir de donde está a donde le digas suavemente.
+* Al cambiar el target en pleno vuelo (ej. en el estado `CRUCERO` cambias `x_ref` de *actual* a *final*), el generador S-Curve recalculará la velocidad y hará la curva solo.
+
+
+
+**Resumen:**
+
+1. Calcula  con el LIDAR (el máximo del trayecto).
+2. Manda al Izaje a .
+3. Cuando el izaje esté "suficientemente alto" (Safe Clearance), manda el Carro a .
+4. Cuando el carro esté "suficientemente cerca", manda el Izaje a .
+
+Esta lógica simple genera **automáticamente** una trayectoria curva óptima sin necesidad de matemáticas complejas de trazado de puntos. ¿Te sirve esta lógica para implementarla?
