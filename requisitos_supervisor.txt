@@ -1,0 +1,115 @@
+================================================================================
+CHECKLIST DE REQUISITOS - SISTEMA DE CONTROL DE GRÚA
+================================================================================
+
+--------------------------------------------------------------------------------
+1. NIVEL 0: PROTECCIÓN Y SEGURIDAD (Jerarquía Máxima)
+   [Ref: Sección 3.4 y 4.1]
+--------------------------------------------------------------------------------
+[ ] INDEPENDENCIA:
+    El autómata de seguridad debe estar separado funcionalmente del Control
+    Supervisor (Nivel 1).
+    Tiempo de ciclo sugerido: Ts0 = 20 ms.
+
+[ ] DISPARADORES DE EMERGENCIA (TRIGGERS):
+    El sistema debe pasar a Estado Seguro inmediatamente si ocurre:
+    [ ] Pulsador de Emergencia ("Hongo" rojo) activado.
+    [ ] Fines de Carrera "Últimos" activados (ubicados 0.50m después del normal).
+    [ ] Sobrevelocidad detectada (> 115% de nominal en tambores).
+    [ ] Falla de Watchdog del Controlador (Falla de CPU/Comunicaciones).
+
+[ ] ACCIÓN DE SEGURIDAD (ESTADO SEGURO):
+    [ ] Desenergizar (CERRAR) frenos mecánicos inmediatamente (BRK_OFF).
+    [ ] Desactivar torque de motores (Torque = 0).
+    [ ] Selectividad: Distinguir si es Emergencia Total, Solo Carro o Solo Izaje.
+
+--------------------------------------------------------------------------------
+2. NIVEL 1: CONTROL SUPERVISOR - GESTIÓN DE FRENOS Y TWISTLOCKS
+   [Ref: Sección 3.4 y 3.7]
+--------------------------------------------------------------------------------
+[ ] LÓGICA DE APERTURA DE FRENOS (Torque Proving):
+    Antes de abrir el freno (BRK_ON), verificar:
+    [ ] Sistema habilitado y sin fallas.
+    [ ] Torque Motor generado es suficiente para sostener la carga.
+    [ ] Velocidad es cero.
+
+[ ] LÓGICA DE CIERRE DE FRENOS:
+    [ ] Cerrar freno solo cuando la velocidad sea cercana a cero (|w| < w_min).
+    [ ] Excepción: En Emergencia (Nivel 0) se cierra sin importar la velocidad.
+
+[ ] INTERLOCKS DE TWISTLOCKS (TLK):
+    [ ] Solo permitir Abrir/Cerrar si los 4 sensores de apoyo confirman
+        contacto ("Landed").
+
+--------------------------------------------------------------------------------
+3. NIVEL 1: MODO MANUAL (Asistido)
+   [Ref: Sección 4.3 y 3.7]
+--------------------------------------------------------------------------------
+[ ] COMANDO:
+    [ ] Referencia de velocidad proporcional al Joystick (con zona muerta).
+    [ ] Respetar rampas de aceleración/jerk máximas.
+
+[ ] LIMITACIÓN DINÁMICA DE VELOCIDAD (Potencia Constante):
+    [ ] Calcular masa estimada durante el despegue.
+    [ ] Ajustar V_max_izaje según la hipérbola de potencia (Fig. 5 PDF).
+        - Carga Nominal (50t) -> V_max aprox 1.5 m/s.
+        - Sin Carga -> V_max aprox 3.0 m/s.
+
+[ ] GESTIÓN DE SOBRECARGA:
+    [ ] Si Masa Estimada > M_max:
+        - Detener movimiento (Parada Normal).
+        - Inhibir subida (Izaje UP bloqueado).
+        - Permitir solo descenso (Izaje DOWN) a velocidad reducida (10%).
+
+[ ] DETECCIÓN DE CABLE FLOJO (Slack Rope):
+    [ ] Detectar pérdida de tensión al apoyar spreader/contenedor.
+    [ ] Al detectar, limitar velocidad o detener para evitar "golpe" al tensar.
+
+[ ] LÍMITES DE CARRERA OPERATIVOS (Soft Limits):
+    [ ] Detener suavemente antes de llegar al límite físico (Soft Limit).
+    [ ] Permitir movimiento solo en sentido contrario para salir del límite.
+
+--------------------------------------------------------------------------------
+4. NIVEL 1: MODO AUTOMÁTICO (Semi-Automático)
+   [Ref: Sección 4.3]
+--------------------------------------------------------------------------------
+[ ] OPTIMIZACIÓN DE TIEMPO (Simultaneidad):
+    [ ] Iniciar traslación de carro (Trolley) apenas la carga alcance
+        la "Altura Segura" (no esperar a que llegue arriba del todo).
+    [ ] Iniciar descenso (Hoist Down) mientras el carro aún se mueve,
+        siempre que no haya obstáculo debajo.
+
+[ ] EVITACIÓN DE COLISIONES (Perfil de Obstáculos):
+    [ ] Calcular trayectoria basada en el perfil escaneado (LIDAR) + Margen.
+    [ ] Verificar altura de seguridad dinámica:
+        - Si TLK cerrado (con carga): H_segura = Perfil + H_container + Margen.
+        - Si TLK abierto (sin carga): H_segura = Perfil + Margen.
+
+[ ] TIPOS DE CICLO:
+    [ ] Ciclo Simple: Carga o Descarga (Ida lleno / Vuelta vacío).
+    [ ] Ciclo Doble: Carga Y Descarga en el mismo viaje (Ida lleno / Vuelta lleno).
+
+--------------------------------------------------------------------------------
+5. GESTIÓN DE TRANSICIONES (Bumpless Transfer) - CRÍTICO
+   [Ref: Sección 4.3, punto b]
+--------------------------------------------------------------------------------
+[ ] TRANSICIÓN MANUAL -> AUTO:
+    [ ] Si la grúa se está moviendo en Manual y se activa Auto:
+        - NO detener la grúa a cero.
+        - Capturar estado actual (Pos, Vel) como condición inicial.
+        - Generar trayectoria desde ese punto hacia el destino.
+
+[ ] TRANSICIÓN AUTO -> MANUAL (Intervención):
+    [ ] Si operador mueve Joystick (> umbral) durante viaje Automático:
+        - Cancelar modo Auto inmediatamente.
+        - NO detener bruscamente (salvo emergencia).
+        - Realizar rampa suave desde velocidad Auto actual hacia la
+          velocidad que pide el Joystick.
+
+[ ] TRANSICIÓN AUTO -> MANUAL (Sin movimiento):
+    [ ] Si se desactiva Auto sin tocar Joystick:
+        - Frenar con rampa normal hasta detenerse.
+
+================================================================================
+FIN DE CHECKLIST
+================================================================================
