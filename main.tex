@@ -579,7 +579,7 @@ Igualando coeficientes con $M_t\,P(s)$ se obtienen las ganancias:
     K_{p,v} = \frac{2\,\zeta_t\,\omega_{n,t}\,M_t - b_t}{K_f} \, , \,
     K_{i,v} = \frac{\omega_{n,t}^2\,M_t}{K_f}
 \end{equation}
-En este trabajo se adopta $\zeta_t = 1$ y $\omega_{n,t} = 2$ rad/s para un compromiso entre rapidez y sobrepaso.
+Experimentando, se decidió adoptar $\zeta_t = 1.1$ y $\omega_{n,t} = 0.95$ rad/s, brindando un rendimiento adecuado.
 
 \subsubsection{Diseño de lazo externo (P de posición)}
 Si se dispone de una consigna de posicion $x_t^\ast(t)$, una forma directa de obtener la referencia de velocidad es derivarla:
@@ -640,7 +640,7 @@ Como $b_{eq,h}$ es muy pequeña en comparación con la inercia, las ecuaciones d
 \begin{equation} \label{eq:gains_hoist}
     K_p \approx 2 \, \zeta \, \omega_n \, J_{eq,h} \quad ; \quad K_i = \omega_n^2 \, J_{eq,h}
 \end{equation}
-Se selecciona $\omega_n \approx 8$ rad/s para asegurar rapidez sin excitar la resonancia del cable, y $\zeta = 0.707$ o $1$ para evitar sobrepasos. Esta sintonía garantiza que el sistema tenga la ``rigidez'' necesaria para sostener la carga, independientemente de la baja fricción mecánica.
+Se selecciona $\omega_{n,h} \approx 0.95$ rad/s para asegurar rapidez sin excitar la resonancia del cable, y $\zeta_h = 1.1$ para evitar sobrepasos. Esta sintonía garantiza que el sistema tenga la ``rigidez'' necesaria para sostener la carga, independientemente de la baja fricción mecánica.
 
 El torque del controlador PI en tiempo discreto es:
 \begin{equation}
@@ -770,6 +770,8 @@ El controlador implementado es un sistema LPV de estructura simplificada que:
     \item Utiliza realimentación directa del ángulo $\theta$ (la acción derivativa es implícita).
     \item Adapta su ganancia proporcionalmente a $\sqrt{l_h}$ para mantener la estabilidad a diferentes alturas.
 \end{enumerate}
+
+\section{Control Supervisor (Nivel 1)}
 
 
 
