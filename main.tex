@@ -730,6 +730,87 @@ Se diseña un bloque que procesa la consigna de posición del supervisor y gener
 \end{enumerate}
 El generador entrega la curva de posición ideal ($x_{ref}$ o $y_{ref}$) al lazo de control.
 
+\subsection{Diseño del Controlador de Balanceo (Anti-Sway)}
+Para la implementación del sistema de control de oscilación de la carga, se ha optado por una estrategia de Control en Cascada Desacoplado, en lugar de un control centralizado basado en el modelo dinámico completo del carro (Lagrangiano). A continuación, se fundamenta esta decisión y se deduce la ley de control utilizada.
+
+\subsubsection{Estructura en Cascada Desacoplada}
+El sistema de la grúa STS posee dos dinámicas con escalas de tiempo claramente separadas:
+\begin{enumerate}
+    \item \textbf{Dinámica del Accionamiento (Lazo Interno):} El control de velocidad del motor del carro (implementado mediante un lazo PI de velocidad) tiene una respuesta rápida (tiempo de establecimiento $< 100$ ms).
+    \item \textbf{Dinámica del Péndulo (Lazo Externo):} La oscilación de la carga es un fenómeno lento, con periodos naturales de oscilación en el orden de los 5 a 15 segundos (dependiendo de la altura de izaje $l_h$).
+\end{enumerate}
+
+Bajo la hipótesis de que el lazo interno de velocidad está correctamente sintonizado, podemos asumir que la velocidad real del carro $v_t$ sigue a la referencia de velocidad $v_{ref}$ con una dinámica despreciable para los propósitos del balanceo:
+\begin{equation}
+    v_t(t) \approx v_{ref}(t)
+\end{equation}
+Esta asunción permite desacoplar la dinámica del carro (masa $M_t$, fricción $b_t$) de la dinámica del péndulo. El controlador de balanceo no necesita conocer la masa del carro ni compensar su fricción, ya que el controlador de velocidad interno se encarga de rechazar esas perturbaciones automáticamente.
+
+\subsubsection{Deducción de la Ley de Control}
+En un esquema controlado por velocidad, la derivada se produce de forma natural por la física del sistema.
+
+La ecuación linealizada del péndulo simple excitado por la aceleración del carro $\ddot{x}_t$ es:
+\begin{equation}
+    \ddot{\theta}_l + \frac{g}{l_h}\theta_l = -\frac{1}{l_h}\,\ddot{x}_t
+    \label{eq:pendulo}
+\end{equation}
+Nuestra variable de control es la referencia de velocidad $v_{ref}$. Si definimos una ley de control proporcional al ángulo:
+\begin{equation}
+    v_{sway} = K_{sway} \, \theta_l
+    \label{eq:ley_control}
+\end{equation}
+La aceleración resultante del carro será:
+\begin{equation}
+    \ddot{x}_t = \frac{d}{dt}(v_{sway}) = K_{sway} \, \dot{\theta}_l
+\end{equation}
+Sustituyendo esta expresión en la ecuación (\ref{eq:pendulo}):
+\begin{equation}
+    \ddot{\theta}_l + \frac{g}{l_h} \, \theta_l = -\frac{1}{l_h} (K_{sway} \, \dot{\theta}_l)
+\end{equation}
+Reordenando los términos para obtener la ecuación característica del sistema en lazo cerrado:
+\begin{equation}
+    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = 0
+    \label{eq:lazo_cerrado}
+\end{equation}
+Al inyectar una señal de velocidad proporcional al ángulo, la física del movimiento transforma esa señal en una aceleración proporcional a la velocidad angular. Esto introduce el término de amortiguamiento viscoso necesario en la ecuación diferencial sin necesidad de derivar numéricamente la señal angular del sensor, lo cual reduce la amplificación de ruido en el sistema.
+
+\subsubsection{Sintonía y Gain Scheduling (LPV Simplificado)}
+Para garantizar un desempeño uniforme independientemente de la altura de la carga, se comparan los coeficientes de la ecuación (\ref{eq:lazo_cerrado}) con la ecuación canónica de un sistema de segundo orden:
+\begin{equation}
+    s^2 + 2 \, \zeta \, \omega_n \, s + \omega_n^2 = 0
+\end{equation}
+Donde $\omega_n = \sqrt{g/l_h}$ es la frecuencia natural del péndulo. Igualando el término de amortiguamiento:
+\begin{equation}
+    \frac{K_{sway}}{l_h} = 2 \, \zeta \, \omega_n \implies K_{sway} = 2 \, \zeta \, l_h \, \sqrt{\frac{g}{l_h}}
+\end{equation}
+Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico ($\zeta = 1$):
+\begin{equation}
+    K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
+\end{equation}
+
+\subsubsection{Factor de Sintonía}
+La derivación anterior asume una respuesta instantánea del carro. En la realidad, el carro posee inercia y límites de aceleración que introducen un retardo de fase. Una ganancia teórica de $\zeta=1$ suele ser excesiva en grúas reales, provocando que el carro reaccione con retraso y exacerbe la oscilación en lugar de atenuarla.
+
+Por ello, se introduce un factor de sintonía $\lambda$ (típicamente entre $0.3$ y $0.7$):
+\begin{equation}
+    K_{sway}(l_h) = K_{teorico}(l_h) \, \lambda = 2 \,\lambda \, \sqrt{g \, l_h} \, \lambda
+\end{equation}
+Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
+
+En las simulaciones realizadas, se determinó que un valor de ganancia $\lambda \approx 0.25 - 0.5$ ofrece el mejor compromiso entre estabilidad, suavidad en la aceleración del carro y tiempo de asentamiento de la carga.
+
+El controlador implementado es un sistema LPV de estructura simplificada que:
+\begin{enumerate}
+    \item No requiere realimentación de la masa de la carga (gracias al control en cascada).
+    \item Utiliza realimentación directa del ángulo $\theta$ (la acción derivativa es implícita).
+    \item Adapta su ganancia proporcionalmente a $\sqrt{l_h}$ para mantener la estabilidad a diferentes alturas.
+\end{enumerate}
+
+\section{Control Supervisor (Nivel 1)}
+
+
+
+
 
 
 
