@@ -788,23 +788,24 @@ Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico (
     K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
 
-\subsubsection{Factor de Sintonía}
-La derivación anterior asume una respuesta instantánea del carro. En la realidad, el carro posee inercia y límites de aceleración que introducen un retardo de fase. Una ganancia teórica de $\zeta=1$ suele ser excesiva en grúas reales, provocando que el carro reaccione con retraso y exacerbe la oscilación en lugar de atenuarla.
-
-Por ello, se introduce un factor de sintonía $\lambda$ (típicamente entre $0.3$ y $0.7$):
-\begin{equation}
-    K_{sway}(l_h) = K_{teorico}(l_h) \, \lambda = 2 \,\lambda \, \sqrt{g \, l_h} \, \lambda
-\end{equation}
-Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
-
-En las simulaciones realizadas, se determinó que un valor de ganancia $\lambda \approx 0.25 - 0.5$ ofrece el mejor compromiso entre estabilidad, suavidad en la aceleración del carro y tiempo de asentamiento de la carga.
-
-El controlador implementado es un sistema LPV de estructura simplificada que:
+\subsubsection{Sintonía Robusta y Factores de Corrección}
+Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta dos limitaciones no lineales que el modelo simplificado ignora:
 \begin{enumerate}
-    \item No requiere realimentación de la masa de la carga (gracias al control en cascada).
-    \item Utiliza realimentación directa del ángulo $\theta$ (la acción derivativa es implícita).
-    \item Adapta su ganancia proporcionalmente a $\sqrt{l_h}$ para mantener la estabilidad a diferentes alturas.
+    \item \textbf{Saturación de Actuadores (Inercia Variable):} Con carga máxima, el motor opera cerca de sus límites de torque. La asunción de respuesta instantánea del carro ($v_t \approx v_{ref}$) se degrada, introduciendo retardos que pueden desestabilizar el sistema si la ganancia es muy agresiva.
+    \item \textbf{Restricciones de Seguridad:} Las especificaciones imponen límites estrictos de oscilación ($\pm 20^\circ$ en transitorios, $\pm 1^\circ$ en reposo). Un controlador lineal optimizado para la precisión en reposo puede resultar insuficiente para frenar oscilaciones grandes durante aceleraciones bruscas.
 \end{enumerate}
+
+Para resolver este compromiso, se implementa una estrategia que modula la ganancia base mediante factores de corrección dinámicos:
+\begin{equation}
+    K_{sway}(l_h, m_{est}, \theta_l) = K_{teorico}(l_h) \, \underbrace{\lambda_{m}(m_{est})}_{\text{Inercia}} \, \underbrace{\lambda_{\theta}(\theta)}_{\text{Seguridad}}
+\end{equation}
+Donde los factores de sintonía se definen como:
+\begin{itemize}
+    \item \textbf{Compensación de Inercia ($\lambda_{m}$):} Amplifica la ganancia cuando la carga es elevada para evitar angulos elevados debido a la inercia del carro.
+    \item \textbf{Factor de Seguridad ($\lambda_{\theta}$):} Aumenta la agresividad del control cuando el ángulo de oscilación se acerca a los límites permitidos ($\pm 20^\circ$), priorizando la seguridad sobre la suavidad.
+\end{itemize}
+
+Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje y de la masa . 
 
 \section{Control Supervisor (Nivel 1)}
 
