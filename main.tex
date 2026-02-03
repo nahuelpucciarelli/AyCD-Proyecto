@@ -206,18 +206,6 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \item Posición lineal del tambor: $x_{td}(t) = \int v_{td}(t) \, dt$
 \end{itemize}
 
-\subsubsection{Modulador de Torque del Carro}
-El accionamiento de traslación del carro se modela con una dinámica de primer orden caracterizada por la constante de tiempo $\tau_{tm}$. La ecuación diferencial que rige el torque $T_{tm}(t)$ es:
-\begin{equation}
-    \tau_{tm} \, \frac{dT_{tm}(t)}{dt} = T_{tm,\,Lim}^*(t) - T_{tm}(t)
-    \label{eq:modulador_carro}
-\end{equation}
-La consigna de referencia $T_{tm}^*(k \, T_{s2})$, proveniente del controlador discreto, es limitada por saturación simétrica para no exceder los límites físicos del motor del carro $T_{tm\_Max}$:
-\begin{equation}
-    T_{tm,\,Lim}^*(t) = \min\left(+T_{tm,\,Max}, \max\left(-T_{tm,\,Max}, T_{tm}^*(k \, T_{s2})\right)\right)
-\end{equation}
-Se asume un límite de torque constante $T_{tm,\,Max}$ en todo el rango operativo, sin considerar efectos de debilitamiento de campo en las ecuaciones.
-
 \subsection{Subsistema de Izaje (Hoist)}
 El sistema de izaje controla la elevación de la carga mediante un mecanismo de tambor accionado por motor eléctrico, con un sistema de cableado (reeving) que introduce una relación de transmisión mecánica adicional.
 \begin{figure}[H]
@@ -427,36 +415,21 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \[ \theta_l = \text{atan2}\left(\frac{x_l(t) - x_t(t)}{Y_{t0} - y_l(t)}\right) \]
 \end{itemize}
 
-\subsubsection{Modulador de Torque de Izaje}
-El comportamiento dinámico del accionamiento eléctrico del mecanismo de izaje se modela como un sistema de primer orden LTI, que representa la respuesta del lazo de control de corriente del variador. La evolución temporal del torque electromecánico $T_{hm}(t)$ se describe mediante la ecuación diferencial:
-\begin{equation}
-    \tau_{hm} \, \frac{dT_{hm}(t)}{dt} = T_{hm,\,Lim}^*(t) - T_{hm}(t)
-    \label{eq:modulador_izaje}
-\end{equation}
-Donde $\tau_{hm}$ es la constante de tiempo del accionamiento. La señal de referencia efectiva $T_{hm,\,Lim}^*(t)$ proviene de la consigna de control discretizada, la cual es sometida a una limitación de seguridad instantánea para proteger el motor. Esta saturación considera tanto el torque máximo nominal como la reducción de capacidad por debilitamiento de campo a altas velocidades:
-\begin{equation}
-    T_{hm,\,Lim}^*(t) = \min\left(+T_{hm,\,Max}, \max\left(-T_{hm,\,Max}, T_{hm}^*(k \, T_{s2})\right)\right)
-\end{equation}
-\begin{equation}
-    T_{hm,\,Max} = T_{hm,\,MAX} \, \min\left(1, \left(\frac{\omega_{hm,\,RATED}}{\omega_{hm}(t)}\right)^2\right)
-\end{equation}
-La última ecuación modela la región de field weakening, donde el torque máximo disponible disminuye cuadráticamente cuando la velocidad del motor $\omega_{hm}(t)$ supera su velocidad nominal $\omega_{hm,\,RATED}$.
-
 \subsection{Perfil 2D de Obstáculos}
 El carro cuenta con un sistema de sensado LIDAR (escaner láser infrarojo 1D) para relevar el perfil topográfico de obstáculos $y_{c0}$ en el área de operación. Este perfil define la superficie efectiva con la que puede interactuar la carga suspendida (spreader + contenedor). El sensor está colocado en el carro, $3$m hacia adelante del spreader, y mide la distancia vertical instantánea desde el carro en movimiento hasta la pila de obstáculos.
 
 Se puede discretizar la posicion del carro (y por lo tanto del spreader) en el rango $x_t \in [x_{t_{min}}, x_{t_{max}}]$ utilizando el ancho del contenedor $W_c$ como paso entre centros. Luego, la cantidad de posiciones discretas a lo largo de $x_t$:
 \begin{equation}
-    N_{x_t} = \text{floor}\left( \frac{x_{t_{max}} - x_{t_{min}}}{W_c} \right)
+    N_{x_t} = \text{floor}\left( \frac{x_{t_{max}} - x_{t_{min}}}{W_c} \right)+1
 \end{equation}
 
 Según la especificación se tiene que $x_{t_{min}}=-30\,$m (sobre el muelle) y $x_{t_{max}}=50\,$m (sobre el barco), y que $W_c=2.44\,$m (ancho de container estándar ISO), se obtiene que $N_{x_t} = 33$. Los posibles índices serán entonces:
 \begin{equation}
-    i = 0, 1, 2, \ldots, 32
+    i = 1, 2, 3, \ldots, 33
 \end{equation}
 Luego, la última posición discreta corresponde a:
 \begin{equation}
-    x_{33} = -30\,\text{m} + (32) \cdot 2.44\,\text{m} = 48.08\,\text{m}
+    x_{33} = -30\,\text{m} + (33-1) \cdot 2.44\,\text{m} = 48.08\,\text{m}
 \end{equation}
 Por lo que se verifica que el rango de discretización cubre todo el área de operación del carro sin exceder el límite de $x_{t_{max}}$.
 
@@ -533,7 +506,7 @@ El Nivel 2 corresponde al control regulatorio de las variables continuas del sis
 
 En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
 
-\subsection{Control de Traslación del Carro}
+\subsection{Control PID de Traslación del Carro}
 Se diseña un controlador PID para el movimiento de traslación del carro, tomando como variable medida la velocidad $v_t(t)$ y como señal de mando el torque del motor $T_{tm}(t)$. Usando la aproximación cuasiestática del tren mecánico, que relaciona la fuerza de tracción con el torque:
 \[
     F_{tw}(t) \approx \frac{i_t}{r_{td}}\,T_{tm}(t)
@@ -548,52 +521,114 @@ El término $F_{coupling}(t)$ se considera una perturbación externa asociada al
 \end{equation}
 Por lo que se obtiene la función de transferencia:
 \begin{equation}
-    G_t(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t} \, , \, K_f = \frac{i_t}{r_{td}}
+    G_t(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}, \quad K_f = \frac{i_t}{r_{td}}
 \end{equation}
 El polo mecánico es $s_p = -\frac{b_t}{M_t}$, cercano al origen debido a la baja fricción. Esto implica una dinámica casi integradora, con respuesta natural lenta y poca amortiguación, por lo que el PID debe aportar amortiguamiento y ubicar los polos de lazo cerrado más alejados del origen para lograr rapidez y robustez.
 
-\subsubsection{Diseño de lazo interno (PI de velocidad)}
-Se define el error $e_v(t) = v_t^\ast(t) - v_t(t)$ y la ley de control PI en tiempo continuo queda:
+\subsubsection{Sintonía PID por asignación de polos}
+Se define el error $e_v(t) = v_t^\ast(t) - v_t(t)$ y la ley de control:
 \begin{equation}
-    T_{tm}^*(t) = K_{p,v}\,e_v(t) + K_{i,v}\,\int e_v(t)\,dt
+    T_{tm}^*(t) = K_p\,e_v(t) + K_i\,\int e_v(t)\,dt + K_d\,\frac{d e_v(t)}{dt}
 \end{equation}
-En el dominio de Laplace, el controlador se expresa como:
+siendo $T_{tm}^*(t)$ la consigna saliente del controlador y que es dirigida hacia el actuador. Con realimentación unitaria, el polinomio característico resulta:
 \begin{equation}
-    C_t(s) = K_{p,v} + \frac{K_{i,v}}{s}
+    s\,(M_t\,s + b_t) + K_f\,\left(K_d\,s^2 + K_p\,s + K_i\right) = 0
 \end{equation}
-Teniendo en cuenta la función de transferencia $G_t(s)$, y dado que la planta convierte torque en velocidad, la salida del lazo interno es $V_t(s)$ mientras que $T_{tm}^*(s)$ es la salida del controlador. Así, el lazo cerrado (por realimentación unitaria) resulta:
+equivalente a:
 \begin{equation}
-    \frac{V_t(s)}{V_t^\ast(s)} = \frac{C_t(s)\,G_t(s)}{1 + C_t(s)\,G_t(s)} =
-    \frac{(K_{p,v}\,s + K_{i,v})\,K_f}{M_t\,s^2 + (b_t + K_f\,K_{p,v})\,s + K_f\,K_{i,v}}
+    (M_t + K_f\,K_d)\,s^2 + (b_t + K_f\,K_p)\,s + K_f\,K_i = 0
 \end{equation}
-El polinomio característico del lazo cerrado es entonces:
+Se desea ubicar los polos del lazo cerrado a una década de rapidez respecto del polo mecánico, por lo que se adopta un polinomio deseado:
 \begin{equation}
-    M_t\,s^2 + (b_t + K_f\,K_{p,v})\,s + K_f\,K_{i,v} = 0
+    \Delta_d(s) = (s + a)^2, \quad a = 10\,\frac{b_t}{M_t}
 \end{equation}
-Se impone un polinomio deseado de segundo orden:
+Igualando coeficientes se obtiene:
 \begin{equation}
-    P(s) = s^2 + 2\,\zeta_t\,\omega_{n,t}\,s + \omega_{n,t}^2
+    K_p = \frac{2\,a\,(M_t + K_f\,K_d) - b_t}{K_f}, \quad
+    K_i = \frac{a^2\,(M_t + K_f\,K_d)}{K_f}
 \end{equation}
-Igualando coeficientes con $M_t\,P(s)$ se obtienen las ganancias:
+La ganancia derivativa $K_d$ permite ajustar la inercia efectiva y el compromiso ruido--rapidez; una elección conservadora es $K_d = 0$, que conduce a un PI con:
 \begin{equation}
-    K_{p,v} = \frac{2\,\zeta_t\,\omega_{n,t}\,M_t - b_t}{K_f} \, , \,
-    K_{i,v} = \frac{\omega_{n,t}^2\,M_t}{K_f}
+    K_p = \frac{2\,a\,M_t - b_t}{K_f}, \quad
+    K_i = \frac{a^2\,M_t}{K_f}
 \end{equation}
-Experimentando, se decidió adoptar $\zeta_t = 1.1$ y $\omega_{n,t} = 0.95$ rad/s, brindando un rendimiento adecuado.
 
-\subsubsection{Diseño de lazo externo (P de posición)}
+\subsubsection{Generacion de consigna de velocidad desde posicion}
 Si se dispone de una consigna de posicion $x_t^\ast(t)$, una forma directa de obtener la referencia de velocidad es derivarla:
 \begin{equation}
     v_t^\ast(t) = \frac{d x_t^\ast(t)}{dt}
 \end{equation}
 En la practica se evita derivar referencias con escalones, por lo que se usa un generador de trayectoria (rampa o perfil trapezoidal) que respeta limites de velocidad y aceleracion, o bien un lazo externo proporcional:
 \begin{equation}
-    v_t^\ast(t) = \mathrm{sat}_{v_{t,\max}}\left(K_{p,x}\,\left(x_t^\ast(t) - x_t(t)\right)\right)
+    v_t^\ast(t) = \mathrm{sat}_{v_{t,\max}}\left(K_x\,\left(x_t^\ast(t) - x_t(t)\right)\right)
 \end{equation}
-con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_{p,x}$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad, por lo que se selecciona:
+con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_x$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad (tipicamente 3--10$\times$). Por ejemplo, si el lazo interno se ajusto con $a = 10\,b_t/M_t$, puede tomarse $K_x \approx a/3$ o $a/10$ y luego ajustar segun saturaciones y limites de aceleracion.
+
+\subsection{Control alternativo del carro con estructura en cascada}
+Para mantener coherencia con el esquema usado en el control de izaje, se adopta una arquitectura en cascada (Posición $\to$ Velocidad $\to$ Torque) y se diseña el lazo interno sobre la velocidad $v_t$, usando $T_{tm}$ como entrada de actuador.
+
+\subsubsection{Modelo del carro para control de velocidad}
+Partiendo de la ecuación de accionamiento del carro \eqref{accionamiento_carro}, y agrupando las perturbaciones mecánicas en un torque equivalente, se tiene:
 \begin{equation}
-    K_{p,x} = \frac{\omega_{n,t}}{N} \, , \, N \in [3,10]
+    J_{eq,t}\,\frac{d \, \omega_{tm}(t)}{dt} + b_{eq,t}\,\omega_{tm}(t) = T_{tm}(t) - T_{dist}(t)
 \end{equation}
+donde
+\begin{equation}
+    T_{dist}(t) = \underbrace{\frac{r_{td}}{i_t}\,F_{tw}(t)}_{\text{Carga en el cable}}
+    - \underbrace{T_{tb}(t,\textcolor{cyan}{BRK_t})}_{\text{Freno}}
+    + \Delta_{model}(t)
+\end{equation}
+Usando la relación cinemática $v_t(t) = \frac{r_{td}}{i_t}\,\omega_{tm}(t)$, la función de transferencia velocidad--torque queda:
+\begin{equation}
+    G_{vel,t}(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_t}{J_{eq,t}\,s + b_{eq,t}}, \quad K_t = \frac{r_{td}}{i_t}
+\end{equation}
+El polo mecánico resulta $P_{mec} = -b_{eq,t}/J_{eq,t}$.
+
+\subsubsection{Diseño del lazo interno (Control PI de velocidad)}
+Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
+\begin{equation}
+    C_{vel}(s) = K_p + \frac{K_i}{s}
+\end{equation}
+Con lazo unitario, el denominador del lazo cerrado es:
+\begin{equation}
+    J_{eq,t}\,s^2 + \left(b_{eq,t} + K_p K_t\right)s + K_i K_t
+\end{equation}
+Se iguala con un polinomio deseado de segundo orden:
+\begin{equation}
+    s^2 + 2\,\zeta\,\omega_n\,s + \omega_n^2
+\end{equation}
+obteniéndose las ganancias:
+\begin{equation}
+    K_p = \frac{2\,\zeta\,\omega_n\,J_{eq,t} - b_{eq,t}}{K_t}, \quad
+    K_i = \frac{\omega_n^2\,J_{eq,t}}{K_t}
+\end{equation}
+La selección de $\omega_n$ se realiza en función del ancho de banda deseado del carro y las limitaciones de aceleración; típicamente se toma $\zeta \in [0.7,1]$ para evitar sobrepasos.
+
+El torque de referencia en tiempo discreto es:
+\begin{equation}
+    T_{tm}^\ast(k) = K_p\,e_v(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2}\left[e_v(j) + e_v(j-1)\right]
+\end{equation}
+con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
+
+\subsubsection{Compensación de fricción (Feedforward)}
+Para reducir el esfuerzo integral, se puede sumar una pre-alimentación viscosa:
+\begin{equation}
+    T_{ff}(k) = b_{eq,t}\,\omega_{tm}^\ast(k) \quad \Rightarrow \quad
+    T_{tm}^\ast(k) = T_{PI}(k) + T_{ff}(k)
+\end{equation}
+Si se dispone de un modelo de fricción Coulomb, puede añadirse un término $\pm T_c$ según el sentido de marcha.
+
+\subsubsection{Diseño del lazo externo (Control P de posición)}
+Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
+\begin{equation}
+    \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
+\end{equation}
+Se utiliza un controlador proporcional:
+\begin{equation}
+    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
+\end{equation}
+lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
+
 
 \subsection{Control de Izaje de la Carga}
 Para el control de la carga en el izaje, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
@@ -640,7 +675,7 @@ Como $b_{eq,h}$ es muy pequeña en comparación con la inercia, las ecuaciones d
 \begin{equation} \label{eq:gains_hoist}
     K_p \approx 2 \, \zeta \, \omega_n \, J_{eq,h} \quad ; \quad K_i = \omega_n^2 \, J_{eq,h}
 \end{equation}
-Se selecciona $\omega_{n,h} \approx 0.95$ rad/s para asegurar rapidez sin excitar la resonancia del cable, y $\zeta_h = 1.1$ para evitar sobrepasos. Esta sintonía garantiza que el sistema tenga la ``rigidez'' necesaria para sostener la carga, independientemente de la baja fricción mecánica.
+Se selecciona $\omega_n \approx 8$ rad/s para asegurar rapidez sin excitar la resonancia del cable, y $\zeta = 0.707$ o $1$ para evitar sobrepasos. Esta sintonía garantiza que el sistema tenga la ``rigidez'' necesaria para sostener la carga, independientemente de la baja fricción mecánica.
 
 El torque del controlador PI en tiempo discreto es:
 \begin{equation}
@@ -753,23 +788,24 @@ Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico (
     K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
 
-\subsubsection{Factor de Sintonía}
-La derivación anterior asume una respuesta instantánea del carro. En la realidad, el carro posee inercia y límites de aceleración que introducen un retardo de fase. Una ganancia teórica de $\zeta=1$ suele ser excesiva en grúas reales, provocando que el carro reaccione con retraso y exacerbe la oscilación en lugar de atenuarla.
-
-Por ello, se introduce un factor de sintonía $\lambda$ (típicamente entre $0.3$ y $0.7$):
-\begin{equation}
-    K_{sway}(l_h) = K_{teorico}(l_h) \, \lambda = 2 \,\lambda \, \sqrt{g \, l_h} \, \lambda
-\end{equation}
-Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje.
-
-En las simulaciones realizadas, se determinó que un valor de ganancia $\lambda \approx 0.25 - 0.5$ ofrece el mejor compromiso entre estabilidad, suavidad en la aceleración del carro y tiempo de asentamiento de la carga.
-
-El controlador implementado es un sistema LPV de estructura simplificada que:
+\subsubsection{Sintonía Robusta y Factores de Corrección}
+Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta dos limitaciones no lineales que el modelo simplificado ignora:
 \begin{enumerate}
-    \item No requiere realimentación de la masa de la carga (gracias al control en cascada).
-    \item Utiliza realimentación directa del ángulo $\theta$ (la acción derivativa es implícita).
-    \item Adapta su ganancia proporcionalmente a $\sqrt{l_h}$ para mantener la estabilidad a diferentes alturas.
+    \item \textbf{Saturación de Actuadores (Inercia Variable):} Con carga máxima, el motor opera cerca de sus límites de torque. La asunción de respuesta instantánea del carro ($v_t \approx v_{ref}$) se degrada, introduciendo retardos que pueden desestabilizar el sistema si la ganancia es muy agresiva.
+    \item \textbf{Restricciones de Seguridad:} Las especificaciones imponen límites estrictos de oscilación ($\pm 20^\circ$ en transitorios, $\pm 1^\circ$ en reposo). Un controlador lineal optimizado para la precisión en reposo puede resultar insuficiente para frenar oscilaciones grandes durante aceleraciones bruscas.
 \end{enumerate}
+
+Para resolver este compromiso, se implementa una estrategia que modula la ganancia base mediante factores de corrección dinámicos:
+\begin{equation}
+    K_{sway}(l_h, m_{est}, \theta_l) = K_{teorico}(l_h) \, \underbrace{\lambda_{m}(m_{est})}_{\text{Inercia}} \, \underbrace{\lambda_{\theta}(\theta)}_{\text{Seguridad}}
+\end{equation}
+Donde los factores de sintonía se definen como:
+\begin{itemize}
+    \item \textbf{Compensación de Inercia ($\lambda_{m}$):} Amplifica la ganancia cuando la carga es elevada para evitar angulos elevados debido a la inercia del carro.
+    \item \textbf{Factor de Seguridad ($\lambda_{\theta}$):} Aumenta la agresividad del control cuando el ángulo de oscilación se acerca a los límites permitidos ($\pm 20^\circ$), priorizando la seguridad sobre la suavidad.
+\end{itemize}
+
+Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje y de la masa . 
 
 \section{Control Supervisor (Nivel 1)}
 
