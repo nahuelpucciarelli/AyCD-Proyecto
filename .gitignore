@@ -26,4 +26,5 @@ Constantes.asv
 *.slxc
 *.autosave
 *.mat
+*.mexw64
 
