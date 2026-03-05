@@ -1,5 +1,5 @@
 %[text] %[text:anchor:T_6907EEB8] # PROYECTO GLOBAL INTEGRADOR – AUTÓMATAS Y CONTROL DISCRETO
-%[text:tableOfContents]{"heading":"**Table of Contents**"}
+%[text:tableOfContents]{"heading":"Table of Contents"}
 clear; clc;
 %%
 %[text] %[text:anchor:H_EFB3868B] ## TIEMPOS DE MUESTREO
@@ -101,18 +101,9 @@ alt_borde = 2.8;                                            % [m] Altura del bor
 h_vec_inicial = [ 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, alt_borde,... 
                   3, 5, 6, 3, 5, 9, 8, 4, 1, -1, -4, -5, -2, -1, 2, 6, 8, 8, 5,...
                   alt_borde] * Hc;                          % Vector inicial del perfil de obstáculos
-h_vec = Simulink.Signal;                                    % Vector del perfil de obstáculos (como objeto Simulink)
-h_vec.DataType = 'double';
-h_vec.Dimensions = [1 33]; 
-h_vec.StorageClass = 'ExportedGlobal';
-h_vec.InitialValue =  'h_vec_inicial';
 
 yc0_vec_inicial = [h_vec_inicial(1:12), zeros(1,N_xt-12)];  % Perfil inicial efectivamente medido (zona aún no escaneada = 0)
 x_LIDAR = 3;                                                % [m] Offset del sensor lidar respecto al carro hacia +xt
-
-% Para arrancar con el terreno ya escaneado
-%is_scanned_vec_inicial = ones(1,N_xt);
-%yc0_vec_inicial = h_vec_inicial;
 %%
 %[text] %[text:anchor:H_15E1EE3A] ## PARÁMETROS CONTROLADOR CARRO
 Kf = it/rtd;                                        % Ganancia de conversión torque motor a fuerza lineal en el carro
