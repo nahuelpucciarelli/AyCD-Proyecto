@@ -1,5 +1,5 @@
 %[text] %[text:anchor:T_6907EEB8] # PROYECTO GLOBAL INTEGRADOR – AUTÓMATAS Y CONTROL DISCRETO
-%[text:tableOfContents]{"heading":"**Table of Contents**"}
+%[text:tableOfContents]{"heading":"Table of Contents"}
 clear; clc;
 %%
 %[text] %[text:anchor:H_EFB3868B] ## TIEMPOS DE MUESTREO
