@@ -20,6 +20,7 @@ BackupRodri/
 
 # Archivos cache de simulaciones
 Matlab/Simulink/slprj/
+Matlab/Simulink/plcsrc/
 *.l
 *.xml
 Constantes.asv
@@ -27,4 +28,9 @@ Constantes.asv
 *.autosave
 *.mat
 *.mexw64
+*.bak
+*.bootinfo
+*.bootinfo_guids
+*.compileinfo
+*.xml
 

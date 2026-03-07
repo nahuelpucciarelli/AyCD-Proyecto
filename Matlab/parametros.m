@@ -162,6 +162,7 @@ titatm_0 = xtd_0/(rtd/it);                    % [rad] Posición angular inical m
 
 % IZAJE
 yh_0 = 39;                                    % [m] Altura geométrica inicial de la carga (consigna ideal) 
+vh_0 = 0;                                     % [m/s] Velocidad inicial carga
 lh_0 = Yt0 - yh_0;                            % [m] Longitud de cable "sin estirar" desenrollada del tambor
 
 whm_0 = 0;                                    % [rad/s] Velocidad inicial motor izaje
