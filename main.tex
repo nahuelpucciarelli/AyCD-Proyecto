@@ -206,6 +206,12 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \item Posición lineal del tambor: $x_{td}(t) = \int v_{td}(t) \, dt$
 \end{itemize}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{carro_planta.png}
+    \caption{Modelo del carro en Simulink (Trolley).}
+\end{figure}
+
 \subsection{Subsistema de Izaje (Hoist)}
 El sistema de izaje controla la elevación de la carga mediante un mecanismo de tambor accionado por motor eléctrico, con un sistema de cableado (reeving) que introduce una relación de transmisión mecánica adicional.
 \begin{figure}[H]
@@ -415,6 +421,12 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
     \[ \theta_l = \text{atan2}\left(\frac{x_l(t) - x_t(t)}{Y_{t0} - y_l(t)}\right) \]
 \end{itemize}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{izaje_planta.png}
+    \caption{Modelo del izaje en Simulink (Hoist).}
+\end{figure}
+
 \subsection{Perfil 2D de Obstáculos}
 El carro cuenta con un sistema de sensado LIDAR (escaner láser infrarojo 1D) para relevar el perfil topográfico de obstáculos $y_{c0}$ en el área de operación. Este perfil define la superficie efectiva con la que puede interactuar la carga suspendida (spreader + contenedor). El sensor está colocado en el carro, $3$m hacia adelante del spreader, y mide la distancia vertical instantánea desde el carro en movimiento hasta la pila de obstáculos.
 
@@ -501,73 +513,56 @@ La lógica de detección de límites se modela según la ubicación física desc
     \end{itemize}
 \end{enumerate}
 
+\subsection{Moduladores de Torque (Accionamientos)}
+En la simulación de la planta física, no es posible aplicar la señal de control de referencia directamente como fuerza mecánica instantánea. Los accionamientos reales (variadores de frecuencia y motores eléctricos) presentan limitaciones tanto en su capacidad de torque máximo como en su velocidad de respuesta dinámica. Para modelar este comportamiento, se introducen bloques moduladores de torque para cada eje.
+
+Estos moduladores cumplen tres funciones principales:
+\begin{enumerate}
+    \item \textbf{Lógica de frenos:} Anulan la entrega de torque del motor si los frenos mecánicos de retención se encuentran aplicados.
+    \item \textbf{Saturación:} Limitan la magnitud del comando de torque para proteger el motor y respetar sus curvas de operación nominales.
+    \item \textbf{Dinámica de primer orden:} Modelan el retardo electromagnético del motor mediante una constante de tiempo ($\tau$), que representa la inercia eléctrica del sistema.
+\end{enumerate}
+
+La dinámica general de los motores se representa mediante una ecuación diferencial de primer orden que vincula el torque limitado comandado ($T_{Lim}^*$) con el torque físico real entregado por el motor ($T(t)$):
+$$\tau \cdot \frac{dT(t)}{dt} = T_{Lim}^*(t) - T(t)$$
+
+Dado que la planta física es un sistema continuo, pero recibe señales de un controlador digital discreto, el valor comandado se mantiene constante mediante un retenedor de orden cero (ZOH) durante cada intervalo de muestreo.
+
+\subsubsection{Modulador del Carro}
+Para el sistema de traslación del carro, la saturación del motor posee un límite fijo ($T_{tm\_Max}$). Previo a la saturación, la señal de referencia digital ($T_{tm\_ref}$) se multiplica por el estado lógico del freno ($BRK_t$), obteniendo el comando efectivo $T_{tm}^*$. La ecuación de saturación por tramos de tiempo está dada por:
+
+$$T_{tm\_Lim}^*(k \, T_{s2} \leq t < (k+1) \, T_{s2}) = \min(+T_{tm\_Max}, \max(-T_{tm\_Max}, T_{tm}^*(k \, T_{s2})))$$
+
+$T_{s2}$ representa el tiempo de muestreo del controlador regulatorio (Nivel 2) a desarrollar, y $k$ es el índice del intervalo de muestreo actual. 
+
+\subsubsection{Modulador de Izaje}
+El mecanismo de izaje presenta una complejidad mayor debido a la redundancia de seguridad (freno de operación $BRK_h$ y freno de emergencia $BRK_{hE}$) y a la naturaleza de la curva de potencia del motor. 
+
+El comando de torque efectivo requiere que ambos frenos estén liberados simultáneamente:
+$$T_{hm}^* = T_{hm\_ref} \, BRK_h \, BRK_{hE}$$
+A diferencia del carro, el límite de torque del motor de izaje no es constante. Para evitar exceder la potencia nominal del equipo a altas velocidades (zona de debilitamiento de campo o de potencia constante), el límite máximo permitido decae en función de la velocidad angular actual ($\omega_{hm}$), comparada con su velocidad nominal ($\omega_{hm\_rated}$). La restricción dinámica se modela como:
+$$T_{hm\_Max\_dyn}(t) = T_{hm\_Max} \cdot \min \left( 1, \left( \frac{\omega_{hm\_rated}}{\omega_{hm}(t)} \right)^2 \right)$$
+Finalmente, la saturación aplicada al accionamiento del izaje en cada instante de muestreo discreto resulta en:
+$$T_{hm\_Lim}^*(k \, T_{s2} \leq t < (k+1) \, T_{s2}) = \min(+T_{hm\_Max\_dyn}(t), \max(-T_{hm\_Max\_dyn}(t), T_{hm}^*(k \, T_{s2})))$$
+
+\subsection{Modelo de la Planta en Simulink}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{planta_completa.png}
+    \caption{Modelo de la Planta en Simulink.}
+\end{figure}
+Integrando todos los elementos descritos, se construye un modelo completo de la planta física en Simulink. Este modelo incluye bloques para cada subsistema, los moduladores de torque y los sensores de posición y fines de carrera. La interconexión de estos bloques permite simular la dinámica acoplada del sistema y evaluar el desempeño del controlador regulatorio a desarrollar a continuación.
+
 \section{Diseño del Control Regulatorio (Nivel 2)}
 El Nivel 2 corresponde al control regulatorio de las variables continuas del sistema. Su objetivo es garantizar que los accionamientos sigan referencias de posición, velocidad y aceleración con precisión y suavidad, respetando restricciones físicas (límites de recorrido, saturaciones de torque, corrientes máximas) y atenuando perturbaciones como el balanceo de la carga o variaciones de masa. Este nivel opera en tiempo discretizado mediante muestreo (Sampled CTDS) y se implementará con lazos de realimentación en cascada (corriente/torque, velocidad y posición), además de compensaciones para mejorar la respuesta transitoria.
 
 En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
 
-\subsection{Control PID de Traslación del Carro}
-Se diseña un controlador PID para el movimiento de traslación del carro, tomando como variable medida la velocidad $v_t(t)$ y como señal de mando el torque del motor $T_{tm}(t)$. Usando la aproximación cuasiestática del tren mecánico, que relaciona la fuerza de tracción con el torque:
-\[
-    F_{tw}(t) \approx \frac{i_t}{r_{td}}\,T_{tm}(t)
-\]
-Se puede reescribir la dinámica de movimiento del carro \eqref{eq:carro_dinamica} como:
-\begin{equation}
-    M_t\,\dot{v}_t(t) = \frac{i_t}{r_{td}}\,T_{tm}(t) - b_t\,v_t(t) + F_{coupling}(t)
-\end{equation}
-El término $F_{coupling}(t)$ se considera una perturbación externa asociada al balanceo de la carga, por lo que puede ser despreciado en el diseño del controlador. Aplicando la transformada de Laplace con condiciones iniciales nulas:
-\begin{equation}
-    (M_t\,s + b_t)\,V_t(s) = \frac{i_t}{r_{td}}\,T_{tm}(s)
-\end{equation}
-Por lo que se obtiene la función de transferencia:
-\begin{equation}
-    G_t(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}, \quad K_f = \frac{i_t}{r_{td}}
-\end{equation}
-El polo mecánico es $s_p = -\frac{b_t}{M_t}$, cercano al origen debido a la baja fricción. Esto implica una dinámica casi integradora, con respuesta natural lenta y poca amortiguación, por lo que el PID debe aportar amortiguamiento y ubicar los polos de lazo cerrado más alejados del origen para lograr rapidez y robustez.
 
-\subsubsection{Sintonía PID por asignación de polos}
-Se define el error $e_v(t) = v_t^\ast(t) - v_t(t)$ y la ley de control:
-\begin{equation}
-    T_{tm}^*(t) = K_p\,e_v(t) + K_i\,\int e_v(t)\,dt + K_d\,\frac{d e_v(t)}{dt}
-\end{equation}
-siendo $T_{tm}^*(t)$ la consigna saliente del controlador y que es dirigida hacia el actuador. Con realimentación unitaria, el polinomio característico resulta:
-\begin{equation}
-    s\,(M_t\,s + b_t) + K_f\,\left(K_d\,s^2 + K_p\,s + K_i\right) = 0
-\end{equation}
-equivalente a:
-\begin{equation}
-    (M_t + K_f\,K_d)\,s^2 + (b_t + K_f\,K_p)\,s + K_f\,K_i = 0
-\end{equation}
-Se desea ubicar los polos del lazo cerrado a una década de rapidez respecto del polo mecánico, por lo que se adopta un polinomio deseado:
-\begin{equation}
-    \Delta_d(s) = (s + a)^2, \quad a = 10\,\frac{b_t}{M_t}
-\end{equation}
-Igualando coeficientes se obtiene:
-\begin{equation}
-    K_p = \frac{2\,a\,(M_t + K_f\,K_d) - b_t}{K_f}, \quad
-    K_i = \frac{a^2\,(M_t + K_f\,K_d)}{K_f}
-\end{equation}
-La ganancia derivativa $K_d$ permite ajustar la inercia efectiva y el compromiso ruido--rapidez; una elección conservadora es $K_d = 0$, que conduce a un PI con:
-\begin{equation}
-    K_p = \frac{2\,a\,M_t - b_t}{K_f}, \quad
-    K_i = \frac{a^2\,M_t}{K_f}
-\end{equation}
+\subsection{Control de Traslación del Carro}
+Para el control del carro, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
 
-\subsubsection{Generacion de consigna de velocidad desde posicion}
-Si se dispone de una consigna de posicion $x_t^\ast(t)$, una forma directa de obtener la referencia de velocidad es derivarla:
-\begin{equation}
-    v_t^\ast(t) = \frac{d x_t^\ast(t)}{dt}
-\end{equation}
-En la practica se evita derivar referencias con escalones, por lo que se usa un generador de trayectoria (rampa o perfil trapezoidal) que respeta limites de velocidad y aceleracion, o bien un lazo externo proporcional:
-\begin{equation}
-    v_t^\ast(t) = \mathrm{sat}_{v_{t,\max}}\left(K_x\,\left(x_t^\ast(t) - x_t(t)\right)\right)
-\end{equation}
-con un limitador de aceleracion opcional para suavizar la consigna. Para valvular $K_x$, se elige el lazo externo varias veces mas lento que el lazo interno de velocidad (tipicamente 3--10$\times$). Por ejemplo, si el lazo interno se ajusto con $a = 10\,b_t/M_t$, puede tomarse $K_x \approx a/3$ o $a/10$ y luego ajustar segun saturaciones y limites de aceleracion.
-
-\subsection{Control alternativo del carro con estructura en cascada}
-Para mantener coherencia con el esquema usado en el control de izaje, se adopta una arquitectura en cascada (Posición $\to$ Velocidad $\to$ Torque) y se diseña el lazo interno sobre la velocidad $v_t$, usando $T_{tm}$ como entrada de actuador.
-
-\subsubsection{Modelo del carro para control de velocidad}
+\subsubsection{Modelo del Carro para Control de Velocidad}
 Partiendo de la ecuación de accionamiento del carro \eqref{accionamiento_carro}, y agrupando las perturbaciones mecánicas en un torque equivalente, se tiene:
 \begin{equation}
     J_{eq,t}\,\frac{d \, \omega_{tm}(t)}{dt} + b_{eq,t}\,\omega_{tm}(t) = T_{tm}(t) - T_{dist}(t)
@@ -584,7 +579,7 @@ Usando la relación cinemática $v_t(t) = \frac{r_{td}}{i_t}\,\omega_{tm}(t)$, l
 \end{equation}
 El polo mecánico resulta $P_{mec} = -b_{eq,t}/J_{eq,t}$.
 
-\subsubsection{Diseño del lazo interno (Control PI de velocidad)}
+\subsubsection{Diseño del Lazo Interno (Control PI de Velocidad)}
 Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
 \begin{equation}
     C_{vel}(s) = K_p + \frac{K_i}{s}
@@ -610,15 +605,7 @@ El torque de referencia en tiempo discreto es:
 \end{equation}
 con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
 
-\subsubsection{Compensación de fricción (Feedforward)}
-Para reducir el esfuerzo integral, se puede sumar una pre-alimentación viscosa:
-\begin{equation}
-    T_{ff}(k) = b_{eq,t}\,\omega_{tm}^\ast(k) \quad \Rightarrow \quad
-    T_{tm}^\ast(k) = T_{PI}(k) + T_{ff}(k)
-\end{equation}
-Si se dispone de un modelo de fricción Coulomb, puede añadirse un término $\pm T_c$ según el sentido de marcha.
-
-\subsubsection{Diseño del lazo externo (Control P de posición)}
+\subsubsection{Diseño del Lazo Externo (Control P de Oosición)}
 Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
 \begin{equation}
     \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
@@ -628,7 +615,6 @@ Se utiliza un controlador proporcional:
     v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
 \end{equation}
 lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
-
 
 \subsection{Control de Izaje de la Carga}
 Para el control de la carga en el izaje, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
@@ -719,6 +705,28 @@ Donde $e_{pos}(k) = y_{ref}(k) - y_{h,\,enc}(k)$. Se convierte la referencia de 
     \omega_{ref}(k) = v_{h,\,cmd}(k) \left( \frac{2 \, i_h}{r_{hd}} \right)
 \end{equation}
 
+\subsubsection{Saturación de Velocidad (Límite Operativo):}
+La demanda de velocidad se limita dinámicamente para respetar la curva de potencia constante del motor. A diferencia de un límite fijo, el valor de saturación $v_{h,limit}$ varía en función de la carga izada estimada ($\hat{m}_l$).
+
+Se define una masa base $M_{base}$ como el punto de quiebre a partir del cual el accionamiento ya no puede sostener la velocidad máxima sin exceder su potencia nominal.
+\begin{equation}
+    v_{h,limit}(\hat{m}_l) = 
+    \begin{cases} 
+        v_{h,max} & \text{si } \hat{m}_l < M_{base} \\
+        \frac{P_{h,nom}}{\hat{m}_l \, g} & \text{si } \hat{m}_l \ge M_{base}
+    \end{cases}
+\end{equation}
+Donde los parámetros del sistema son:
+\begin{itemize}
+    \item $P_{h,nom}$: Potencia nominal disponible para izaje.
+    \item $v_{h,max}$: Velocidad máxima mecánica.
+    \item $M_{base}$: Carga límite para operación a velocidad máxima.
+\end{itemize}
+Finalmente, la ley de control saturada que se envía como referencia al lazo interno resulta:
+\begin{equation}
+    v_{ref}(k) = \text{sat}\left( v_{h,\, cmd}(k), \, \pm v_{h,limit}(\hat{m}_l) \right)
+\end{equation}
+
 \subsection{Generación de Trayectoria (Perfil de Movimiento)}
 Dado que tanto el sistema del carro como del izaje poseen límites estrictos de seguridad (velocidades máximas variables y aceleraciones acotadas) no es viable ingresar referencias de tipo escalón a los controladores.
 
@@ -788,55 +796,184 @@ Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico (
     K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
 
-\subsubsection{Sintonía Robusta y Factores de Corrección}
-Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta dos limitaciones no lineales que el modelo simplificado ignora:
-\begin{enumerate}
-    \item \textbf{Saturación de Actuadores (Inercia Variable):} Con carga máxima, el motor opera cerca de sus límites de torque. La asunción de respuesta instantánea del carro ($v_t \approx v_{ref}$) se degrada, introduciendo retardos que pueden desestabilizar el sistema si la ganancia es muy agresiva.
-    \item \textbf{Restricciones de Seguridad:} Las especificaciones imponen límites estrictos de oscilación ($\pm 20^\circ$ en transitorios, $\pm 1^\circ$ en reposo). Un controlador lineal optimizado para la precisión en reposo puede resultar insuficiente para frenar oscilaciones grandes durante aceleraciones bruscas.
-\end{enumerate}
+\subsubsection{Sintonía Robusta y Factor de Corrección}
+Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta una limitación no lineal que el modelo simplificado ignora:
 
-Para resolver este compromiso, se implementa una estrategia que modula la ganancia base mediante factores de corrección dinámicos:
+\textbf{Saturación de Actuadores (Inercia Variable):} Con carga máxima, el motor opera cerca de sus límites de torque. La asunción de respuesta instantánea del carro ($v_t \approx v_{ref}$) se degrada, introduciendo retardos que pueden desestabilizar el sistema si la ganancia es muy agresiva.
+
+Para resolver este compromiso, se implementa una estrategia que modula la ganancia base mediante un factor de corrección dinámico:
 \begin{equation}
-    K_{sway}(l_h, m_{est}, \theta_l) = K_{teorico}(l_h) \, \underbrace{\lambda_{m}(m_{est})}_{\text{Inercia}} \, \underbrace{\lambda_{\theta}(\theta)}_{\text{Seguridad}}
+    K_{sway}(l_h, m_{est}, \theta_l) = K_{teorico}(l_h) \, \underbrace{\lambda_{m}(m_{est})}_{\text{Inercia}}
 \end{equation}
-Donde los factores de sintonía se definen como:
+Donde el factor de sintonía se define como \textbf{compensación de inercia ($\lambda_{m}$):} Disminuye la ganancia cuando la carga es elevada para evitar correcciones bruscas debido a la inercia del carro.
+
+Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje y de la masa. 
+
+\subsection{Observadores de Estado}
+Se puede notar de las ecuaciones desarrolladas que la realimentación de velocidad es un parámetro crítico para garantizar la estabilidad de los lazos internos. Dado que la planta física cuenta únicamente con mediciones de posición a través de encoders, la obtención de la velocidad mediante una derivada directa amplifica drásticamente el ruido de cuantificación de los sensores, desestabilizando la señal de control.
+
+Para solucionar este problema y obtener una estimación limpia de la velocidad ($\hat{\omega}$), se implementaron observadores de estado extendidos. Estos bloques combinan un modelo físico-matemático del sistema con un lazo de corrección basado en el error de estimación de posición.
+
+El error de estimación se define como la diferencia entre la posición angular medida por el encoder y la posición estimada internamente por el observador:
+$$e_{\theta} = \theta_{enc} - \hat{\theta}$$
+Este error alimenta tres ganancias de corrección ($L_1$, $L_2$ y $L_3$) que ajustan la dinámica del modelo para forzar la convergencia de los estados estimados hacia los estados reales de la planta. Las ecuaciones diferenciales que rigen la actualización de los estados en el observador están dadas por:
+$$\dot{\hat{\theta}} = \hat{\omega} + L_1 \, e_{\theta}$$
+$$\dot{\hat{\omega}} = \frac{1}{J_{eq}} \left( T_{ref} - b_{eq} \, \hat{\omega} + L_3 \int e_{\theta} \, dt \right) + L_2 \, e_{\theta}$$
+Donde:
 \begin{itemize}
-    \item \textbf{Compensación de Inercia ($\lambda_{m}$):} Amplifica la ganancia cuando la carga es elevada para evitar angulos elevados debido a la inercia del carro.
-    \item \textbf{Factor de Seguridad ($\lambda_{\theta}$):} Aumenta la agresividad del control cuando el ángulo de oscilación se acerca a los límites permitidos ($\pm 20^\circ$), priorizando la seguridad sobre la suavidad.
+    \item $J_{eq}$ y $b_{eq}$ representan la inercia y fricción viscosa equivalentes reflejadas al eje del motor.
+    \item $T_{ref}$ es el torque de referencia comandado por el lazo de velocidad interno.
+    \item $L_3 \int e_{\theta} \, dt$ actúa como un estimador de perturbaciones, acumulando el error para compensar dinámicas no modeladas o variaciones de carga.
 \end{itemize}
 
-Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje y de la masa . 
+La arquitectura del observador es idéntica tanto para el mecanismo del carro como para el de izaje. Sin embargo, en el eje de izaje se introduce un término adicional de pre-compensación $T_{grav} = M_s \, g \, \frac{r_{hd}}{2 \, i_h}$ para contrarrestar el peso en vacío del spreader ($M_s$), evitando así un error de estimación transitorio en el instante de arranque.
 
-\section{Control Supervisor (Nivel 1)}
+Finalmente, la velocidad lineal observada ($\hat{v}$) que retroalimenta al controlador regulatorio principal se obtiene mediante la relación de transmisión cinemática de cada mecanismo respectivo:
+$$\hat{v} = \hat{\omega} \cdot k_{out}$$
+Siendo la constante de conversión $k_{out} = \frac{r_{td}}{i_t}$ para el sistema del carro y $k_{out} = \frac{r_{hd}}{2 i_h}$ para el sistema de izaje.
 
+\subsection{Modelo del Controlador Regulatorio en Simulink}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{control_carro.png}
+    \caption{Control Regulatorio del Carro (Trolley).}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{control_izaje.png}
+    \caption{Control Regulatorio del Izaje (Hoist).}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{control_regulatorio.png}
+    \caption{Modelo del Control Regulatorio en Simulink.}
+\end{figure}
 
+\section{Diseño del Control Supervisor (Nivel 1)}
+El control supervisor actúa como el cerebro operativo de la grúa. Ejecutado a un tiempo de muestreo $T_{s1} = 20$ ms, su objetivo es tomar decisiones lógicas, garantizar la seguridad y coordinar los comandos que se envían al control regulatorio de bajo nivel. 
 
+Para organizar esta lógica compleja, la arquitectura se dividió en múltiples procesos paralelos, permitiendo que la máquina evalúe simultáneamente el modo de operación, la seguridad y el entorno.
 
-
-
-
-\newpage
-\section{Descartes y Opcionales}
-\subsection{Saturación de Velocidad (Límite Operativo):}
-La demanda de velocidad se limita dinámicamente para respetar la curva de potencia constante del motor. A diferencia de un límite fijo, el valor de saturación $v_{h,limit}$ varía en función de la carga izada estimada ($\hat{m}_l$).
-
-Se define una masa base $M_{base}$ como el punto de quiebre a partir del cual el accionamiento ya no puede sostener la velocidad máxima sin exceder su potencia nominal.
-\begin{equation}
-    v_{h,limit}(\hat{m}_l) = 
-    \begin{cases} 
-        v_{h,max} & \text{si } \hat{m}_l < M_{base} \\
-        \frac{P_{h,nom}}{\hat{m}_l \, g} & \text{si } \hat{m}_l \ge M_{base}
-    \end{cases}
-\end{equation}
-Donde los parámetros del sistema son:
+\subsection{Máquina de Estados}
+Es el hilo de ejecución primario que dicta el comportamiento global de la grúa. Gestiona de manera segura las transiciones entre los distintos modos de operación:
 \begin{itemize}
-    \item $P_{h,nom} = 956.15 \text{ kW}$: Potencia nominal disponible para izaje.
-    \item $v_{h,max} = 3.0 \text{ m/s}$: Velocidad máxima mecánica.
-    \item $M_{base} = 32\,500 \text{ kg}$: Carga límite para operación a velocidad máxima.
+    \item \textbf{Stand By:} Estado de reposo y espera de comandos.
+    \item \textbf{Modo Manual:} Permite al operador tomar el control directo de las velocidades de los ejes a través del joystick.
+    \item \textbf{Modo Automático:} Toma el control de la grúa para mover un contenedor desde un punto A hasta un punto B. Internamente, este estado cuenta con una sub-máquina algorítmica encargada de planificar una trayectoria libre de colisiones y ejecutarla por etapas.
+    \item \textbf{Modos de Error y Posición Segura:} En caso de detectar una falla, la máquina aborta la operación actual y fuerza a los ejes a adoptar una posición de resguardo para proteger la integridad de la carga y el equipo.
 \end{itemize}
-Finalmente, la ley de control saturada que se envía como referencia al lazo interno resulta:
-\begin{equation}
-    v_{ref}(k) = \text{sat}\left( v_{h,\, cmd}(k), \, \pm v_{h,limit}(\hat{m}_l) \right)
-\end{equation}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{maquina_estados.png}
+    \caption{Máquina de Estados en Stateflow.}
+\end{figure}
 
+\subsection{Gestión de Twistlocks}
+Este bloque paralelo se encarga exclusivamente de la lógica del spreader. Administra los tiempos y las confirmaciones de los sensores para tomar (\texttt{CERRANDO\_TLK}) o soltar (\texttt{ABRIENDO\_TLK}) el contenedor, asegurando que la grúa nunca intente un movimiento de izaje si el anclaje no es mecánicamente seguro.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{twistlocks.png}
+    \caption{Lógica Twistlocks en Stateflow.}
+\end{figure}
+
+\subsection{Manejo de Entradas del Operador}
+Se encarga del pre-procesamiento de las señales provenientes del operador. Escala, filtra y traduce los comandos crudos del hardware (como la deflexión de un joystick) en consignas cinemáticas limpias (referencias de velocidad o posición) que el control regulatorio pueda interpretar correctamente.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{manejo_cruceta.png}
+    \caption{Manejo de Cruceta en Stateflow.}
+\end{figure}
+
+\subsection{Análisis Espacial y Perfil de Obstáculos}
+Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su entorno. Este bloque procesa los datos de los sensores de escaneo del LIDAR y actualiza continuamente un mapa de alturas o perfil de obstáculos bajo el área de trabajo. Esto garantiza que cualquier trayectoria generada esquive las pilas de contenedores existentes.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{indices_perfil.png}
+    \caption{Índices y Perfil de Obstáculos en Stateflow.}
+\end{figure}
+
+\subsection{Supervisión de Comunicación (Watchdog Heartbeat)}
+Constituye un anillo de seguridad de software vital. Este bloque emite y espera recibir pulsos de vida (\textit{heartbeats}) a intervalos regulares desde la estación de operación remota. Si el contador de pulsos perdidos supera un límite preestablecido, el sistema asume una pérdida de comunicación, interrumpe cualquier movimiento en curso y envía a la máquina principal al estado de error.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{watchdog_heartbeat.png}
+    \caption{Watchdog Heartbeat en Stateflow.}
+\end{figure}
+
+\subsection{Límites Suaves}
+Bloque de código que actúa como una barrera de seguridad preventiva. Antes de que el carro o el izaje alcancen los límites físicos extremos de su carrera (donde actuarían los finales de carrera de corte eléctrico), este bloque recorta gradualmente las referencias de velocidad, forzando una detención suave y controlada dentro del área de trabajo válida.
+
+\subsection{Modelo del Control Supervisor en Simulink}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{control_supervisor.png}
+    \caption{Modelo del Control Supervisor en Simulink.}
+\end{figure}
+
+\subsection{Joystick Físico}
+Para controlar la grúa, se utiliza un joystick físico conectado a la estación de operación. Este dispositivo permite al operador controlar directamente las velocidades de traslación e izaje, así como activar comandos específicos (como el cierre de twistlocks). El bloque de manejo de entradas del operador en el supervisor procesa estas señales para generar referencias adecuadas para el control regulatorio.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{joystick.png}
+    \caption{Bloque de Configuración de Joystick en Stateflow.}
+\end{figure}
+
+\section{Diseño del Control de Seguridad (Nivel 0)}
+El Nivel 0 representa la capa de protección más baja y con mayor jerarquía dentro de la arquitectura de control. Su función exclusiva es salvaguardar la integridad de la grúa, la carga y el personal. Este nivel tiene la autoridad para sobrescribir cualquier comando proveniente del Nivel 1, cortando la energía de los actuadores y aplicando los frenos mecánicos ante cualquier anomalía. 
+
+La lógica de seguridad se modeló mediante dos procesos paralelos continuos:
+
+\subsection{Máquina de Estados de Seguridad}
+Este hilo supervisa constantemente el estado físico de la máquina a través de la redundancia de sensores. Durante la operación normal, el sistema permanece en el estado \texttt{SISTEMA\_OK}. 
+
+Dentro de este estado nominal, el bloque realiza un cálculo dinámico crítico: ajusta en tiempo real el límite de velocidad de izaje permitido ($vh\_lim$) en función de la masa actual de la carga. Esto garantiza que el motor nunca exceda su potencia nominal ($P_{nom}$), comportándose según una curva de potencia constante:
+$$vh\_lim = \min \left( vh\_max\_unloaded, \max \left( vh\_nom, \frac{P_{nom}}{(m_{container} + M_s) g} \right) \right)$$
+
+El sistema evaluará continuamente condiciones de falla para transicionar a estados de emergencia específicos, en los cuales se aplican inmediatamente los frenos de operación y emergencia ($BRK_{t} = 0$, $BRK_{hE} = 0$):
+\begin{itemize}
+    \item \textbf{Emergencia de Izaje:} Se activa si la velocidad observada supera en un $15\%$ al límite dinámico calculado (sobrevelocidad), o si se activan los finales de carrera superior/inferior (\texttt{FCE\_sup}, \texttt{FCE\_inf}).
+    \item \textbf{Emergencia de Carro:} Se activa si el carro impacta contra los finales de carrera extremos (\texttt{FCE\_izq}, \texttt{FCE\_der}).
+    \item \textbf{Emergencia Manual:} Detención forzada accionada por el operador mediante el botón físico de golpe de puño (\texttt{BTN\_Emerg}).
+    \item \textbf{Emergencia de Comunicación (\texttt{EMERGENCIA\_WD}):} Disparada por la pérdida de enlace con la estación de control.
+\end{itemize}
+
+Una vez mitigada la causa de la parada, el sistema exige un rearme manual (\texttt{BTN\_Reset}) que hace transicionar a la máquina a un \texttt{MODO\_RECUPERACION} antes de permitirle volver a operar normalmente.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{estados_seguridad.png}
+    \caption{Estados de Seguridad en Stateflow.}
+\end{figure}
+
+\subsection{Monitor de Comunicaciones}
+Este segundo proceso paralelo funciona como un supervisor de la integridad de la red de datos. La estación de control remota (control supervisor) debe enviar una señal de latido (\textit{heartbeat}) que alterna su estado constantemente. 
+
+La máquina de estados del Watchdog alterna entre \texttt{HEARTBEAT\_DOWN} y \texttt{HEARTBEAT\_UP} persiguiendo esta señal. Si la señal se congela y el sistema permanece en un solo estado por una cantidad de ciclos de reloj que supere el límite seguro (\texttt{counter\_limit}), se declara una falla de red (\texttt{FALLA\_WD = 1}), lo que dispara la parada de emergencia en el proceso principal para evitar que la grúa continúe moviéndose con el último comando recibido.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{watchdog.png}
+    \caption{Watchdog en Stateflow.}
+\end{figure}
+
+\subsection{Modelo del Control de Seguridad en Simulink}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{control_seguridad.png}
+    \caption{Modelo del Control de Seguridad en Simulink.}
+\end{figure}
+
+\section{Comunicación con Unity}
+Para la visualización en tiempo real de la grúa y su entorno, se implementó un bloque de comunicación que transmite los estados críticos del sistema a una aplicación desarrollada en Unity. Esta aplicación renderiza una representación 2D de la grúa, los contenedores y el barco, permitiendo al operador monitorear visualmente la operación.
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{unity1.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{unity2.png}
+    \end{subfigure}
+    \caption{Bloque de Comunicación con Unity en Simulink.}
+\end{figure}
 \end{document}
