@@ -1,1 +1,1 @@
-Proyecto Integrador Automatas y Control Discreto
+Proyecto Integrador Autómatas y Control Discreto
