@@ -889,7 +889,7 @@ Se encarga del pre-procesamiento de las señales provenientes del operador. Esca
 Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su entorno. Este bloque procesa los datos de los sensores de escaneo del LIDAR y actualiza continuamente un mapa de alturas o perfil de obstáculos bajo el área de trabajo. Esto garantiza que cualquier trayectoria generada esquive las pilas de contenedores existentes. Al mismo tiempo, calcula los índices en los que se encuentra el spreader. El perfil de alturas se representa como una envolvente de seguridad, con margenes laterales y superiores que garantizan que la grúa no intente pasar por zonas donde pueda colisionar con obstáculos.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{indices_perfil.png}
+    \includegraphics[width=1\textwidth]{indices_perfil.png}
     \caption{Índices y Perfil de Obstáculos en Stateflow.}
 \end{figure}
 
@@ -897,7 +897,7 @@ Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su 
 Este bloque constituye un anillo de seguridad vital. Se encarga de emitir pulsos de vida (\textit{heartbeats}) a intervalos regulares. En el control de seguridad, otro bloque cuenta estos pulsos. Si se detecta una falta de pulsos (superando un límite preestablecido), el sistema de seguridad asume una pérdida de comunicación, interrumpiendo cualquier movimiento en curso y envíando al sistema al estado de error.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.3\textwidth]{watchdog_heartbeat.png}
+    \includegraphics[width=0.4\textwidth]{watchdog_heartbeat.png}
     \caption{Watchdog Heartbeat en Stateflow.}
 \end{figure}
 
