@@ -877,7 +877,7 @@ Este bloque paralelo se encarga exclusivamente de la lógica del spreader. Admin
 \end{figure}
 
 \subsection{Manejo de Entradas del Operador}
-Se encarga del pre-procesamiento de las señales provenientes del operador. Escala, filtra y traduce los comandos crudos del hardware (como la deflexión de un joystick) en consignas cinemáticas limpias (referencias de velocidad) que el control regulatorio pueda interpretar correctamente. Se divide en dos bloques paralelos: uno se encarga exclusivamente de la gestion de las inputs del joystick, limitando movimientos en ciertas situaciones (como la sobrecarga) y suavizando las consignas de velocidad para que no superen los límites de seguirdad, el otro bloque se encarga de actualizar la denominada ``cruceta'', que es la interfaz que muestra al operador dónde está el spreader en tiempo real, permitiendo que se tenga una referencia visual de la posición de la carga (fundamental para realizar movimientos precisos). 
+Se encarga del pre-procesamiento de las señales provenientes del operador. Escala, filtra y traduce los comandos crudos del hardware (como la deflexión de un joystick) en consignas cinemáticas limpias (referencias de velocidad) que el control regulatorio pueda interpretar correctamente. Se divide en dos bloques paralelos: uno se encarga exclusivamente de la gestion de las inputs del joystick, limitando movimientos en ciertas situaciones (como la sobrecarga) y suavizando las consignas de velocidad para que no superen los límites de seguridad, el otro bloque se encarga de actualizar la denominada ``cruceta'', que es la interfaz que muestra al operador dónde está el spreader en tiempo real, permitiendo que se tenga una referencia visual de la posición de la carga (fundamental para realizar movimientos precisos). 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.66\textwidth]{manejo_cruceta.png}
@@ -885,7 +885,7 @@ Se encarga del pre-procesamiento de las señales provenientes del operador. Esca
 \end{figure}
 
 \subsection{Análisis Espacial y Perfil de Obstáculos}
-Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su entorno. Este bloque procesa los datos de los sensores de escaneo del LIDAR y actualiza continuamente un mapa de alturas o perfil de obstáculos bajo el área de trabajo. Esto garantiza que cualquier trayectoria generada esquive las pilas de contenedores existentes. Al mismo tiempo, calcula los índices en los que se encuentra el spreader. El perfil de alturas se representa como una envolvente de seguridad, con margenes laterales y superiores que garantizan que la grúa no intente pasar por zonas donde pueda colisionar con obstáculos.
+Para que el modo automático pueda trazar rutas seguras, la grúa debe conocer su entorno. Este bloque procesa los datos de los sensores de escaneo del LIDAR y actualiza continuamente un mapa de alturas o perfil de obstáculos bajo el área de trabajo. Esto garantiza que cualquier trayectoria generada esquive las pilas de contenedores existentes. Al mismo tiempo, calcula los índices en los que se encuentra el carro. El perfil de alturas se representa como una envolvente de seguridad, con margenes laterales y superiores que garantizan que la grúa no intente pasar por zonas donde pueda colisionar con obstáculos.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{indices_perfil.png}
@@ -893,7 +893,7 @@ Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su 
 \end{figure}
 
 \subsection{Supervisión de Comunicación (Watchdog Heartbeat)}
-Este bloque constituye un anillo de seguridad vital. Se encarga de emitir pulsos de vida (\textit{heartbeats}) a intervalos regulares. En el control de seguridad, otro bloque cuenta estos pulsos. Si se detecta una falta de pulsos (superando un límite preestablecido), el sistema de seguridad asume una pérdida de comunicación, interrumpiendo cualquier movimiento en curso y envíando al sistema al estado de error.
+Este bloque constituye un anillo de seguridad vital. Se encarga de emitir pulsos de vida (\textit{heartbeats}) a intervalos regulares. En el control de seguridad, otro bloque observa esta señal. Si se detecta una falta de pulsos (superando un tiempo preestablecido), el sistema de seguridad asume una pérdida de comunicación, interrumpiendo cualquier movimiento en curso y envíando al sistema al estado de error.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.4\textwidth]{watchdog_heartbeat.png}
@@ -926,18 +926,17 @@ La lógica de seguridad se modeló mediante dos procesos paralelos continuos:
 \subsection{Máquina de Estados de Seguridad}
 Este hilo supervisa constantemente el estado físico de la máquina a través de la redundancia de sensores. Durante la operación normal, el sistema permanece en el estado \texttt{SISTEMA\_OK}. 
 
-Dentro de este estado nominal, el bloque realiza un cálculo dinámico crítico: ajusta en tiempo real el límite de velocidad de izaje permitido ($vh\_lim$) en función de la masa actual de la carga. Esto garantiza que el motor nunca exceda su potencia nominal ($P_{nom}$), comportándose según una curva de potencia constante:
-$$vh\_lim = \min \left( vh\_max\_unloaded, \max \left( vh\_nom, \frac{P_{nom}}{(m_{container} + M_s) g} \right) \right)$$
+Dentro de este estado nominal, el bloque realiza un cálculo dinámico crítico: ajusta en tiempo real el límite de velocidad de izaje permitido ($vh\_lim$) en función de la masa actual de la carga. Esto garantiza que el motor nunca exceda su potencia nominal ($P_{nom}$), comportándose según una curva de potencia constante (sobrevelocidad).
 
-El sistema evaluará continuamente condiciones de falla para transicionar a estados de emergencia específicos, en los cuales se aplican inmediatamente los frenos de operación y emergencia ($BRK_{t} = 0$, $BRK_{hE} = 0$):
+El sistema evaluará continuamente condiciones de falla para transicionar a estados de emergencia específicos, en los cuales se aplican inmediatamente los frenos de emergencia ($BRK_{t} = 0$, $BRK_{hE} = 0$), según corresponda:
 \begin{itemize}
     \item \textbf{Emergencia de Izaje:} Se activa si la velocidad observada supera en un $15\%$ al límite dinámico calculado (sobrevelocidad), o si se activan los finales de carrera superior/inferior (\texttt{FCE\_sup}, \texttt{FCE\_inf}).
     \item \textbf{Emergencia de Carro:} Se activa si el carro impacta contra los finales de carrera extremos (\texttt{FCE\_izq}, \texttt{FCE\_der}).
-    \item \textbf{Emergencia Manual:} Detención forzada accionada por el operador mediante el botón físico de golpe de puño (\texttt{BTN\_Emerg}).
-    \item \textbf{Emergencia de Comunicación (\texttt{EMERGENCIA\_WD}):} Disparada por la pérdida de enlace con la estación de control.
+    \item \textbf{Emergencia Manual:} Detención forzada accionada por el operador mediante el botón físico de emergencia (\texttt{BTN\_Emerg}).
+    \item \textbf{Emergencia de Comunicación (\texttt{EMERGENCIA\_WD}):} Disparada por la pérdida de comunicación con el control supervisor, utilizando el watchdog.
 \end{itemize}
 
-Una vez mitigada la causa de la parada, el sistema exige un rearme manual (\texttt{BTN\_Reset}) que hace transicionar a la máquina a un \texttt{MODO\_RECUPERACION} antes de permitirle volver a operar normalmente.
+Una vez mitigada la causa de la parada, el sistema exige un rearme manual (\texttt{BTN\_Reset}) que hace transicionar a la máquina a un \texttt{MODO\_RECUPERACION} antes de permitir volver a operación nominal.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{estados_seguridad.png}
@@ -947,7 +946,7 @@ Una vez mitigada la causa de la parada, el sistema exige un rearme manual (\text
 \subsection{Monitor de Comunicaciones}
 Este segundo proceso paralelo funciona como un supervisor de la integridad de la red de datos. El control supervisor debe enviar una señal de latido (\textit{heartbeat}) que alterna su estado constantemente. 
 
-La máquina de estados del Watchdog alterna entre \texttt{HEARTBEAT\_DOWN} y \texttt{HEARTBEAT\_UP} persiguiendo esta señal. Si la señal se congela y el sistema permanece en un solo estado por una cantidad de ciclos de reloj que supere el límite seguro (\texttt{counter\_limit}), se declara una falla de red (\texttt{FALLA\_WD = 1}), lo que dispara la parada de emergencia en el proceso principal para evitar que la grúa continúe moviéndose con el último comando recibido.
+La máquina de estados del Watchdog alterna entre \texttt{HEARTBEAT\_DOWN} y \texttt{HEARTBEAT\_UP} persiguiendo esta señal. Si la señal se congela y el sistema permanece en un solo estado por una cantidad de ciclos de reloj que supere el límite seguro (\texttt{counter\_limit}), se declara una falla de red (\texttt{FALLA\_WD}), lo que dispara la parada de emergencia en el proceso principal para evitar que la grúa continúe moviéndose con el último comando recibido.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.6\textwidth]{watchdog.png}
