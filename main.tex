@@ -795,6 +795,7 @@ Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico (
 \begin{equation}
     K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
+A esta ganancia teórica se le puede aplicar un factor de sintonía ($\lambda$) para ajustar el nivel de amortiguamiento deseado. Debido a que la velocidad del carro es limitada, es posible que se requiera una ganancia menor a la teórica para evitar sobrecorrecciones en la posición de la carga.
 
 \subsubsection{Sintonía Robusta y Factor de Corrección}
 Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta una limitación no lineal que el modelo simplificado ignora:
@@ -852,15 +853,15 @@ Siendo la constante de conversión $k_{out} = \frac{r_{td}}{i_t}$ para el sistem
 \section{Diseño del Control Supervisor (Nivel 1)}
 El control supervisor actúa como el cerebro operativo de la grúa. Ejecutado a un tiempo de muestreo $T_{s1} = 20$ ms, su objetivo es tomar decisiones lógicas, garantizar la seguridad y coordinar los comandos que se envían al control regulatorio de bajo nivel. 
 
-Para organizar esta lógica compleja, la arquitectura se dividió en múltiples procesos paralelos, permitiendo que la máquina evalúe simultáneamente el modo de operación, la seguridad y el entorno.
+Para organizar esta lógica, la arquitectura se dividió en múltiples procesos paralelos, permitiendo que el control evalúe simultáneamente el modo de operación, la seguridad y el entorno.
 
 \subsection{Máquina de Estados}
-Es el hilo de ejecución primario que dicta el comportamiento global de la grúa. Gestiona de manera segura las transiciones entre los distintos modos de operación:
+Como primer bloque se desarrolla una máquina de estados. Este es el hilo de ejecución primario que dicta el comportamiento global de la grúa. Su objetivo es gestionar de manera segura las transiciones entre los distintos modos de operación:
 \begin{itemize}
-    \item \textbf{Stand By:} Estado de reposo y espera de comandos.
-    \item \textbf{Modo Manual:} Permite al operador tomar el control directo de las velocidades de los ejes a través del joystick.
-    \item \textbf{Modo Automático:} Toma el control de la grúa para mover un contenedor desde un punto A hasta un punto B. Internamente, este estado cuenta con una sub-máquina algorítmica encargada de planificar una trayectoria libre de colisiones y ejecutarla por etapas.
-    \item \textbf{Modos de Error y Posición Segura:} En caso de detectar una falla, la máquina aborta la operación actual y fuerza a los ejes a adoptar una posición de resguardo para proteger la integridad de la carga y el equipo.
+    \item \textbf{Stand By:} Estado de reposo y espera de comandos. Es el estado inicial del sistema, donde la grúa permanece con los frenos cerrados. Este estado también se activa automáticamente después de un período de inactividad o tras una operación completa, garantizando que la grúa no quede en una posición vulnerable.
+    \item \textbf{Modo Manual:} Permite al operador tomar el control directo de las velocidades de los ejes a través del joystick. En conjunto con el bloque \textit{Manejo Cruceta} se encarga de traducir las señales del joystick en consignas de velocidad para el control regulatorio, permitiendo movimientos precisos y suaves. Este estado es activado siempre que se detecte una consigna en el joystick.
+    \item \textbf{Modo Automático:} Es el estado más complejo, ya que debe controlar la grúa sin señales del operador. Incluye múltiples estados internos que permiten seleccionar el contenedor a mover. Luego toma el control de la grúa para mover el mismo desde un punto A hasta un punto B. A traves de dos funciones Matlab, genera una curva de movimiento segura, moviendo el spreader a estados intermedios que salen como consignas de posición al control regulatorio, el cual las suaviza mediante la Curva S para cumplir las limitaciones de velocidad y aceleración. Estas funciones manejan dos casos distintos: uno cuando no se conoce el perfil de obstáculos, el cual genera una trayectoria segura, y otro cuando sí se conoce, utilizando el mapa de alturas generado por el bloque paralelo de \textit{Índices y Perfil}.
+    \item \textbf{Modos de Error y Posición Segura:} En caso de detectarse una falla (propia del control supervisor o del control de seguridad), la máquina aborta cualquier operación actual y fuerza al sistema a adoptar una posición de resguardo para proteger la integridad de la carga y el equipo. La recuperación se puede activar con un botón de reset, pero esto es principalmente para pruebas, ya que en un entorno real se requeriría una inspección física antes de reanudar la operación.
 \end{itemize}
 \begin{figure}[H]
     \centering
@@ -869,7 +870,7 @@ Es el hilo de ejecución primario que dicta el comportamiento global de la grúa
 \end{figure}
 
 \subsection{Gestión de Twistlocks}
-Este bloque paralelo se encarga exclusivamente de la lógica del spreader. Administra los tiempos y las confirmaciones de los sensores para tomar (\texttt{CERRANDO\_TLK}) o soltar (\texttt{ABRIENDO\_TLK}) el contenedor, asegurando que la grúa nunca intente un movimiento de izaje si el anclaje no es mecánicamente seguro.
+Este bloque paralelo se encarga exclusivamente de la lógica del spreader. Administra los tiempos y las confirmaciones de los sensores para tomar (\texttt{CERRANDO\_TLK}) o soltar (\texttt{ABRIENDO\_TLK}) el contenedor, asegurando que la grúa nunca intente un movimiento de izaje si el anclaje no es mecánicamente seguro. Posee 4 estados internos: \texttt{VACIO}, estado inicial que mueve el spreader a la velocidad máxima permitida, \texttt{CERRANDO\_TLK}, que se activa cuando la tensión en el cable disminuye lo suficiente para indicar que el spreader se apoyó en un contenedor, \texttt{CARGADO}, que estima la masa del contenedor, limita la velocidad segun la curva de potencia y detecta sobrecarga, y \texttt{ABRIENDO\_TLK}, que análogamente al estado de cerrar, detecta que la tensión disminuya para abrir los twistlocks. Finalmente se transiciona al estado inicial una vez superada cierta altura de seguridad.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{twistlocks.png}
@@ -877,45 +878,45 @@ Este bloque paralelo se encarga exclusivamente de la lógica del spreader. Admin
 \end{figure}
 
 \subsection{Manejo de Entradas del Operador}
-Se encarga del pre-procesamiento de las señales provenientes del operador. Escala, filtra y traduce los comandos crudos del hardware (como la deflexión de un joystick) en consignas cinemáticas limpias (referencias de velocidad o posición) que el control regulatorio pueda interpretar correctamente.
+Se encarga del pre-procesamiento de las señales provenientes del operador. Escala, filtra y traduce los comandos crudos del hardware (como la deflexión de un joystick) en consignas cinemáticas limpias (referencias de velocidad) que el control regulatorio pueda interpretar correctamente. Se divide en dos bloques paralelos: uno se encarga exclusivamente de la gestion de las inputs del joystick, limitando movimientos en ciertas situaciones (como la sobrecarga) y suavizando las consignas de velocidad para que no superen los límites de seguirdad, el otro bloque se encarga de actualizar la denominada ``cruceta'', que es la interfaz que muestra al operador dónde está el spreader en tiempo real, permitiendo que se tenga una referencia visual de la posición de la carga (fundamental para realizar movimientos precisos). 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{manejo_cruceta.png}
+    \includegraphics[width=0.66\textwidth]{manejo_cruceta.png}
     \caption{Manejo de Cruceta en Stateflow.}
 \end{figure}
 
 \subsection{Análisis Espacial y Perfil de Obstáculos}
-Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su entorno. Este bloque procesa los datos de los sensores de escaneo del LIDAR y actualiza continuamente un mapa de alturas o perfil de obstáculos bajo el área de trabajo. Esto garantiza que cualquier trayectoria generada esquive las pilas de contenedores existentes.
+Para que el modo automático pueda trazar rutas seguras, la grúa debe "ver" su entorno. Este bloque procesa los datos de los sensores de escaneo del LIDAR y actualiza continuamente un mapa de alturas o perfil de obstáculos bajo el área de trabajo. Esto garantiza que cualquier trayectoria generada esquive las pilas de contenedores existentes. Al mismo tiempo, calcula los índices en los que se encuentra el spreader. El perfil de alturas se representa como una envolvente de seguridad, con margenes laterales y superiores que garantizan que la grúa no intente pasar por zonas donde pueda colisionar con obstáculos.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{indices_perfil.png}
+    \includegraphics[width=0.8\textwidth]{indices_perfil.png}
     \caption{Índices y Perfil de Obstáculos en Stateflow.}
 \end{figure}
 
 \subsection{Supervisión de Comunicación (Watchdog Heartbeat)}
-Constituye un anillo de seguridad de software vital. Este bloque emite y espera recibir pulsos de vida (\textit{heartbeats}) a intervalos regulares desde la estación de operación remota. Si el contador de pulsos perdidos supera un límite preestablecido, el sistema asume una pérdida de comunicación, interrumpe cualquier movimiento en curso y envía a la máquina principal al estado de error.
+Este bloque constituye un anillo de seguridad vital. Se encarga de emitir pulsos de vida (\textit{heartbeats}) a intervalos regulares. En el control de seguridad, otro bloque cuenta estos pulsos. Si se detecta una falta de pulsos (superando un límite preestablecido), el sistema de seguridad asume una pérdida de comunicación, interrumpiendo cualquier movimiento en curso y envíando al sistema al estado de error.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.4\textwidth]{watchdog_heartbeat.png}
+    \includegraphics[width=0.3\textwidth]{watchdog_heartbeat.png}
     \caption{Watchdog Heartbeat en Stateflow.}
 \end{figure}
 
 \subsection{Límites Suaves}
-Bloque de código que actúa como una barrera de seguridad preventiva. Antes de que el carro o el izaje alcancen los límites físicos extremos de su carrera (donde actuarían los finales de carrera de corte eléctrico), este bloque recorta gradualmente las referencias de velocidad, forzando una detención suave y controlada dentro del área de trabajo válida.
+Este bloque de código actúa como una barrera de seguridad preventiva. Antes de que el carro o el izaje alcancen los límites físicos extremos de su carrera (donde actuarían los finales de carrera), este bloque recorta gradualmente las referencias de velocidad, forzando una detención suave y controlada dentro del área de trabajo válida.
 
 \subsection{Modelo del Control Supervisor en Simulink}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.7\textwidth]{control_supervisor.png}
+    \includegraphics[width=0.6\textwidth]{control_supervisor.png}
     \caption{Modelo del Control Supervisor en Simulink.}
 \end{figure}
 
-\subsection{Joystick Físico}
-Para controlar la grúa, se utiliza un joystick físico conectado a la estación de operación. Este dispositivo permite al operador controlar directamente las velocidades de traslación e izaje, así como activar comandos específicos (como el cierre de twistlocks). El bloque de manejo de entradas del operador en el supervisor procesa estas señales para generar referencias adecuadas para el control regulatorio.
+\subsection{Control del Joystick y Botones Físicos}
+Para controlar la grúa, se utiliza un joystick físico conectado a la estación de operación. Este dispositivo permite al operador controlar directamente las velocidades de traslación e izaje, así como activar comandos específicos (como el cierre de twistlocks). El bloque de manejo de entradas en el control supervisor procesa estas señales para generar referencias adecuadas para el control regulatorio.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{joystick.png}
-    \caption{Bloque de Configuración de Joystick en Stateflow.}
+    \caption{Bloque de Configuración del Joystick en Stateflow.}
 \end{figure}
 
 \section{Diseño del Control de Seguridad (Nivel 0)}
@@ -945,12 +946,12 @@ Una vez mitigada la causa de la parada, el sistema exige un rearme manual (\text
 \end{figure}
 
 \subsection{Monitor de Comunicaciones}
-Este segundo proceso paralelo funciona como un supervisor de la integridad de la red de datos. La estación de control remota (control supervisor) debe enviar una señal de latido (\textit{heartbeat}) que alterna su estado constantemente. 
+Este segundo proceso paralelo funciona como un supervisor de la integridad de la red de datos. El control supervisor debe enviar una señal de latido (\textit{heartbeat}) que alterna su estado constantemente. 
 
 La máquina de estados del Watchdog alterna entre \texttt{HEARTBEAT\_DOWN} y \texttt{HEARTBEAT\_UP} persiguiendo esta señal. Si la señal se congela y el sistema permanece en un solo estado por una cantidad de ciclos de reloj que supere el límite seguro (\texttt{counter\_limit}), se declara una falla de red (\texttt{FALLA\_WD = 1}), lo que dispara la parada de emergencia en el proceso principal para evitar que la grúa continúe moviéndose con el último comando recibido.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.7\textwidth]{watchdog.png}
+    \includegraphics[width=0.6\textwidth]{watchdog.png}
     \caption{Watchdog en Stateflow.}
 \end{figure}
 
@@ -961,7 +962,7 @@ La máquina de estados del Watchdog alterna entre \texttt{HEARTBEAT\_DOWN} y \te
     \caption{Modelo del Control de Seguridad en Simulink.}
 \end{figure}
 
-\section{Comunicación con Unity}
+\section{Comunicación y Animación con Unity}
 Para la visualización en tiempo real de la grúa y su entorno, se implementó un bloque de comunicación que transmite los estados críticos del sistema a una aplicación desarrollada en Unity. Esta aplicación renderiza una representación 2D de la grúa, los contenedores y el barco, permitiendo al operador monitorear visualmente la operación.
 \begin{figure}[H]
     \centering
@@ -976,4 +977,34 @@ Para la visualización en tiempo real de la grúa y su entorno, se implementó u
     \end{subfigure}
     \caption{Bloque de Comunicación con Unity en Simulink.}
 \end{figure}
+
+A continuación se presentan algunas capturas en diferentes estados de la grúa, mostrando la posición del spreader, la carga y el entorno. Estas visualizaciones son fundamentales para que el operador tenga una referencia clara de la operación en curso, especialmente en modo automático.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{unity_grua1.png}
+    \caption{Modo Manual. Nótese la envolvente de seguridad del perfil de obstáculos y la zona aún sin medir con el LIDAR (índice 31 en adelante).}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{unity_grua2.png}
+    \caption{Modo Automático.}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{unity_grua3.png}
+    \caption{Modo Automático. Nótese la cruceta que muestra la posición objetivo a llevar el contenedor, con la masa ya estimada y la velocidad limitada según la curva de potencia.}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{unity_grua4.png}
+    \caption{Modo Error Manual. Nótese que la grúa se detiene y se muestra un mensaje de error por haber apretado el botón de emergencia}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{unity_grua5.png}
+    \caption{Modo de Posición Segura. De forma automática, la grúa se mueve a una posición de resguardo para proteger la integridad de la carga y el equipo.}
+\end{figure}
+
+\section{Codesys}
+
 \end{document}
