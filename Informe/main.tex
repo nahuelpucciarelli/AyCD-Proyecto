@@ -18,8 +18,8 @@
 \title{\textbf{Control de Accionamientos y Automatización de Grúa
 Portacontenedores de Muelle tipo Pórtico} \\ \Large{Proyecto Global Integrador}}
 
-\author{Aleo Rodrigo \\ Pucciarelli Nahuel \\ \\ AUTÓMATAS Y CONTROL DISCRETO 
-\\ Universidad Nacional de Cuyo \\ Mendoza, Argentina}
+\author{Aleo Rodrigo \\ Pucciarelli Nahuel \\ \\ AUTÓMATAS Y CONTROL DISCRETO \\ Profesor Ing. Julián Gabriel
+\\ \\ Universidad Nacional de Cuyo \\ Mendoza, Argentina}
 
 \date{2026}
 
@@ -1141,22 +1141,19 @@ A continuación, los bloques de escritura/lectura de las variables de control re
     \caption{Simulink - Cliente OPC-UA - Control de Seguridad.}
 \end{figure}
 
+\newpage
 \section{Conclusiones}
-El desarrollo de este proyecto demostró la viabilidad y robustez de aplicar la metodología de Diseño Basado en Modelos para la automatización de maquinaria pesada. La integración escalonada desde la física pura hasta el código de control industrial permite extraer las siguientes conclusiones fundamentales:
+En este proyecto se logró atravesar las diferentes etapas del diseño de control, desde la modelación física y el desarrollo de controladores en Simulink, hasta la implementación en Codesys y la integración con una aplicación de visualización en Unity. En ese sentido, fue un trabajo integral de control mecatrónico, porque no se quedó solo en la simulación ni solo en la programación del PLC, sino que conectó modelado, control, supervisión y validación visual dentro de un mismo flujo.
 
-\subsection{Validación Virtual y Diseño de Control}
-El uso del entorno MATLAB/Simulink probó ser una herramienta invaluable como laboratorio de ensayo virtual. Modelar la física no lineal de la grúa —incluyendo la cinemática del péndulo, inercias variables y moduladores de torque electromagnéticos— permitió validar algoritmos de control complejos sin poner en riesgo hardware físico real. La sintonización analítica de los controladores regulatorios y de los observadores de estado garantizó un desempeño óptimo y determinista.
+Uno de los aprendizajes más importantes fue el valor del modelo físico. Tener una base dinámica razonable permitió diseñar y ajustar mejor los controladores, pero también dejó claro que todo modelo tiene límites y simplificaciones. Considerar esas limitaciones desde el principio ayudó a interpretar mejor los resultados y a no asumir comportamientos ideales que después no se sostienen al pasar a una arquitectura industrial.
 
-\subsection{Transición a la Arquitectura Industrial}
-La migración de los modelos teóricos continuos al entorno de programación IEC 61131-3 en CODESYS evidenció el salto cualitativo entre la matemática ideal y las restricciones del hardware industrial. Se concluye que la estructuración del código requiere un manejo estricto del determinismo temporal:
-\begin{itemize}
-    \item \textbf{Gestión de Tareas (Tasking):} Fue imperativo separar la ejecución en diferentes hilos jerárquicos. El control regulatorio exige tiempos de escáner ultrarrápidos ($T_{s2} = 1$ ms) para mantener la estabilidad numérica de la integración discreta, mientras que las tareas lógicas operan eficientemente a menores frecuencias ($T_{s1} = 20$ ms).
-    \item \textbf{Estructuración del Código:} La combinación de Texto Estructurado (ST) para la resolución de ecuaciones diferenciales y Diagramas de Funciones Secuenciales (SFC) para las máquinas de estado supervisoras, resultó en una arquitectura de software escalable.
-\end{itemize}
+También fue clave el modelo de los controles, sobre todo por cómo se organizaron los distintos niveles. El uso de herramientas como las máquinas de estado permitió estructurar la lógica de forma más clara y robusta, facilitando la detección de condiciones de falla y la definición de respuestas seguras ante eventos críticos.
 
-\subsection{Co-Simulación}
-La implementación de una animación en Unity, comunicado mediante Simulink vía OPC UA, validó la lógica de Nivel 1 (Control Supervisor) y Nivel 0 (Seguridad). Una conclusión crítica de esta etapa fue la necesidad de desacoplar las frecuencias de control y comunicación. Intentar transmitir datos por red a la velocidad del lazo interno asfixia los recursos del procesador y satura la red. La solución de implementar bloques de comunicación con tiempos de muestreo más lentos permitió mantener la integridad de la simulación sin comprometer la seguridad, aunque introdujo un retardo que debe ser considerado en un entorno real.
+En esa parte, un desafío concreto fue adaptar la lógica desarrollada en Stateflow al entorno de Codesys. Pasar de un enfoque gráfico basado en estados y transiciones a una implementación en SFC y ST exigió reordenar la lógica, cuidar el manejo de eventos y temporizaciones, y validar que el comportamiento final se mantuviera equivalente al del modelo original.
 
-En síntesis, este flujo de trabajo garantiza que la lógica de control, las medidas de seguridad ante fallas y la gestión de trayectorias que gobiernan el modelo virtual son estructuralmente idénticas a las que se cargarían en el Controlador Lógico Programable (PLC) de una grúa real, reduciendo drásticamente los tiempos de puesta en marcha y asegurando los más altos estándares de seguridad operativa.
+Por último, el desarrollo de la interfaz gráfica en Unity aportó una representación visual en tiempo real muy útil para validar el comportamiento global de la grúa. Esta etapa permitió además incorporar y comprender la comunicación UDP entre Simulink y Unity, incluyendo el empaquetado y tratamiento de datos.
+
+\section{Repositorio}
+El proyecto completo, incluyendo los modelos de Simulink, el código en ST para Codesys y la aplicación de Unity, se encuentra disponible en el siguiente \href{https://github.com/nahuelpucciarelli/AyCD-Proyecto.git}{repositorio de GitHub}.
 
 \end{document}
