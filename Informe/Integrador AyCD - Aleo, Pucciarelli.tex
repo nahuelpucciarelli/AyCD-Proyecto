@@ -738,55 +738,47 @@ Se diseña un bloque que procesa la consigna de posición del supervisor y gener
 El generador entrega la curva de posición ideal ($x_{ref}$ o $y_{ref}$) al lazo de control.
 
 \subsection{Diseño del Controlador de Balanceo (Anti-Sway)}
-Para la implementación del sistema de control de oscilación de la carga, se ha optado por una estrategia de Control en Cascada Desacoplado, en lugar de un control centralizado basado en el modelo dinámico completo del carro (Lagrangiano). A continuación, se fundamenta esta decisión y se deduce la ley de control utilizada.
+Para la implementación del sistema de control de oscilación de la carga, se ha optado por una estrategia de Control en Cascada Desacoplado, en lugar de un control centralizado basado en el modelo dinámico completo del sistema (Lagrangiano). A continuación, se fundamenta esta decisión y se deduce la ley de control utilizada.
 
 \subsubsection{Estructura en Cascada Desacoplada}
 El sistema de la grúa STS posee dos dinámicas con escalas de tiempo claramente separadas:
 \begin{enumerate}
-    \item \textbf{Dinámica del Accionamiento (Lazo Interno):} El control de velocidad del motor del carro (implementado mediante un lazo PI de velocidad) tiene una respuesta rápida (tiempo de establecimiento $< 100$ ms).
-    \item \textbf{Dinámica del Péndulo (Lazo Externo):} La oscilación de la carga es un fenómeno lento, con periodos naturales de oscilación en el orden de los 5 a 15 segundos (dependiendo de la altura de izaje $l_h$).
+    \item \textbf{Dinámica del Accionamiento (Lazo Interno):} El control de velocidad del motor del carro tiene una respuesta rápida (tiempo de establecimiento $< 100$ ms).
+    \item \textbf{Dinámica del Péndulo (Lazo Externo):} La oscilación de la carga es un fenómeno lento, con periodos naturales en el orden de los 2 a 12 segundos (dependiendo de la altura de izaje $l_h$).
 \end{enumerate}
 
-Bajo la hipótesis de que el lazo interno de velocidad está correctamente sintonizado, podemos asumir que la velocidad real del carro $v_t$ sigue a la referencia de velocidad $v_{ref}$ con una dinámica despreciable para los propósitos del balanceo:
+Bajo la hipótesis de que el lazo interno está correctamente sintonizado, se asume que la velocidad real del carro $v_t$ sigue a la referencia de velocidad $v_{ref}$ con una dinámica despreciable:
 \begin{equation}
     v_t(t) \approx v_{ref}(t)
 \end{equation}
-Esta asunción permite desacoplar la dinámica del carro (masa $M_t$, fricción $b_t$) de la dinámica del péndulo. El controlador de balanceo no necesita conocer la masa del carro ni compensar su fricción, ya que el controlador de velocidad interno se encarga de rechazar esas perturbaciones automáticamente.
+Esta asunción permite desacoplar la dinámica del actuador (masa del carro y fricción) de la dinámica pendular, simplificando significativamente el diseño del controlador externo.
 
 \subsubsection{Deducción de la Ley de Control}
-En un esquema controlado por velocidad, la derivada se produce de forma natural por la física del sistema.
-
 La ecuación linealizada del péndulo simple excitado por la aceleración del carro $\ddot{x}_t$ es:
 \begin{equation}
     \ddot{\theta}_l + \frac{g}{l_h}\theta_l = -\frac{1}{l_h}\,\ddot{x}_t
     \label{eq:pendulo}
 \end{equation}
-Nuestra variable de control es la referencia de velocidad $v_{ref}$. Si definimos una ley de control proporcional al ángulo:
+
+En esta arquitectura, la referencia de velocidad total enviada al variador se compone de la velocidad de trayectoria planificada más la acción de control antibalanceo: $v_{ref} = v_{traj} + v_{sway}$. 
+Si definimos una ley de control antibalanceo estrictamente proporcional al ángulo:
 \begin{equation}
     v_{sway} = K_{sway} \, \theta_l
     \label{eq:ley_control}
 \end{equation}
-La aceleración resultante del carro será:
+La aceleración resultante del carro impuesta al péndulo será la derivada de la referencia total:
 \begin{equation}
-    \ddot{x}_t = \frac{d}{dt}(v_{sway}) = K_{sway} \, \dot{\theta}_l
+    \ddot{x}_t \approx \dot{v}_{traj} + \frac{d}{dt}(K_{sway} \, \theta_l) = \dot{v}_{traj} + K_{sway} \, \dot{\theta}_l
 \end{equation}
-Sustituyendo esta expresión en la ecuación (\ref{eq:pendulo}):
+Sustituyendo esta expresión en la ecuación (\ref{eq:pendulo}) y reordenando los términos, se obtiene la ecuación diferencial del sistema en lazo cerrado:
 \begin{equation}
-    \ddot{\theta}_l + \frac{g}{l_h} \, \theta_l = -\frac{1}{l_h} (K_{sway} \, \dot{\theta}_l)
-\end{equation}
-Reordenando los términos para obtener la ecuación característica del sistema en lazo cerrado:
-\begin{equation}
-    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = 0
+    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = -\frac{1}{l_h}\dot{v}_{traj}
     \label{eq:lazo_cerrado}
 \end{equation}
-Al inyectar una señal de velocidad proporcional al ángulo, la física del movimiento transforma esa señal en una aceleración proporcional a la velocidad angular. Esto introduce el término de amortiguamiento viscoso necesario en la ecuación diferencial sin necesidad de derivar numéricamente la señal angular del sensor, lo cual reduce la amplificación de ruido en el sistema.
+Este resultado es fundamental: al inyectar una señal de velocidad proporcional al ángulo, la cinemática del sistema transforma esa señal en una aceleración proporcional a la velocidad angular. Esto introduce el término de amortiguamiento viscoso en el péndulo (actuando dinámicamente como un compensador PD), mientras que la aceleración de la trayectoria $\dot{v}_{traj}$ actúa únicamente como una fuerza forzante que excita el sistema de manera transitoria.
 
 \subsubsection{Sintonía y Gain Scheduling (LPV Simplificado)}
-Para garantizar un desempeño uniforme independientemente de la altura de la carga, se comparan los coeficientes de la ecuación (\ref{eq:lazo_cerrado}) con la ecuación canónica de un sistema de segundo orden:
-\begin{equation}
-    s^2 + 2 \, \zeta \, \omega_n \, s + \omega_n^2 = 0
-\end{equation}
-Donde $\omega_n = \sqrt{g/l_h}$ es la frecuencia natural del péndulo. Igualando el término de amortiguamiento:
+Para garantizar un desempeño uniforme frente a la variación de la longitud del cable, se comparan los coeficientes de la ecuación (\ref{eq:lazo_cerrado}) con la ecuación canónica de un sistema de segundo orden ($s^2 + 2\zeta\omega_n s + \omega_n^2 = 0$), donde $\omega_n = \sqrt{g/l_h}$ (frecuencia natural del péndulo). Igualando el término de amortiguamiento:
 \begin{equation}
     \frac{K_{sway}}{l_h} = 2 \, \zeta \, \omega_n \implies K_{sway} = 2 \, \zeta \, l_h \, \sqrt{\frac{g}{l_h}}
 \end{equation}
@@ -794,20 +786,21 @@ Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico (
 \begin{equation}
     K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
-A esta ganancia teórica se le puede aplicar un factor de sintonía ($\lambda$) para ajustar el nivel de amortiguamiento deseado. Debido a que la velocidad del carro es limitada, es posible que se requiera una ganancia menor a la teórica para evitar sobrecorrecciones en la posición de la carga.
+Dado que la altura de izaje determina directamente la frecuencia natural del péndulo, el modelo se interpreta como un sistema de parámetros variables (LPV). Para mantener una respuesta invariante, se ajusta la ganancia $K_{sway}$ dinámicamente en función de $l_h$.
 
-\subsubsection{Sintonía Robusta y Factor de Corrección}
-Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta una limitación no lineal que el modelo simplificado ignora:
+A esta ganancia teórica se le debe aplicar un factor de sintonía ($\lambda$) para ajustar el nivel de amortiguamiento (equivalente a cambiar $\zeta$). Esto se debe a que la velocidad del carro es limitada, por lo que es necesaria una ganancia menor para evitar sobrecorrecciones en la posición de la carga. Después de varias pruebas, se seleccionó $\lambda = 0.45$ para lograr un compromiso entre amortiguamiento efectivo y estabilidad robusta.
 
-\textbf{Saturación de Actuadores (Inercia Variable):} Con carga máxima, el motor opera cerca de sus límites de torque. La asunción de respuesta instantánea del carro ($v_t \approx v_{ref}$) se degrada, introduciendo retardos que pueden desestabilizar el sistema si la ganancia es muy agresiva.
+\subsubsection{Factor de Corrección}
+Si bien la derivación teórica sugiere una ganancia dependiente únicamente de la longitud del cable, la implementación práctica enfrenta limitaciones por saturación de actuadores. Con carga máxima, la asunción de respuesta instantánea del carro se degrada, introduciendo retardos que pueden desestabilizar el lazo si la ganancia es muy agresiva.
 
-Para resolver este compromiso, se implementa una estrategia que modula la ganancia base mediante un factor de corrección dinámico:
+Para resolver este compromiso, se modula la ganancia base mediante un factor de compensación de inercia ($\lambda_m$):
 \begin{equation}
-    K_{sway}(l_h, m_{est}, \theta_l) = K_{teorico}(l_h) \, \underbrace{\lambda_{m}(m_{est})}_{\text{Inercia}}
+    K_{sway}(l_h, m_{est}) = K_{teorico}(l_h) \, \lambda_{m}(m_{est})
 \end{equation}
-Donde el factor de sintonía se define como \textbf{compensación de inercia ($\lambda_{m}$):} Disminuye la ganancia cuando la carga es elevada para evitar correcciones bruscas debido a la inercia del carro.
+La ganancia disminuye cuando la carga ($m_{est}$) es elevada, priorizando la estabilidad del actuador frente a la rapidez de amortiguamiento. Físicamente, esta acción de control provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima sin desestabilizar el lazo de velocidad interno.
 
-Finalmente, la señal $ v_{sway}$ se suma a la referencia de velocidad proveniente del lazo de posición. Físicamente, esto provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima independientemente de la altura de izaje y de la masa. 
+\subsubsection{Conclusiones}
+La arquitectura resultante corresponde a un esquema de control jerárquico ampliamente utilizado en grúas industriales. El controlador de trayectoria genera la referencia principal de movimiento, mientras que el compensador de balanceo actúa en paralelo modulándola. Esta estrategia permite controlar un sistema subactuado introduciendo amortiguamiento efectivo, sin requerir de un complejo modelo Lagrangiano acoplado.
 
 \subsection{Observadores de Estado}
 Se puede notar de las ecuaciones desarrolladas que la realimentación de velocidad es un parámetro crítico para garantizar la estabilidad de los lazos internos. Dado que la planta física cuenta únicamente con mediciones de posición a través de encoders, la obtención de la velocidad mediante una derivada directa amplifica drásticamente el ruido de cuantificación de los sensores, desestabilizando la señal de control.
@@ -831,6 +824,21 @@ La arquitectura del observador es idéntica tanto para el mecanismo del carro co
 Finalmente, la velocidad lineal observada ($\hat{v}$) que retroalimenta al controlador regulatorio principal se obtiene mediante la relación de transmisión cinemática de cada mecanismo respectivo:
 $$\hat{v} = \hat{\omega} \cdot k_{out}$$
 Siendo la constante de conversión $k_{out} = \frac{r_{td}}{i_t}$ para el sistema del carro y $k_{out} = \frac{r_{hd}}{2 i_h}$ para el sistema de izaje.
+
+\subsubsection{Cálculo de Ganancias}
+Para determinar los valores empíricos de las ganancias de corrección vectoriales $L = [L_1, L_2, L_3]^T$, se empleó la técnica de asignación de polos (Pole Placement) sobre un modelo de la planta en el espacio de estados aumentado.
+
+El sistema mecánico del accionamiento se modeló definiendo como variables de estado la posición $x_1 = \theta$, la velocidad $x_2 = \omega$ y un estado extendido $x_3 = T_{dist}$, el cual representa el torque de perturbación total no modelado (acción integral). El sistema continuo aumentado resulta:
+$$\dot{x} = A_{aug} \, x + B_{aug} \, u$$
+$$y = C_{aug} \, x$$
+Donde las matrices dinámicas del sistema son:
+$$A_{aug} = \begin{bmatrix} 0 & 1 & 0 \\ 0 & -\frac{b_{eq}}{J_{eq}} & \frac{1}{J_{eq}} \\ 0 & 0 & 0 \end{bmatrix}, \quad C_{aug} = \begin{bmatrix} 1 & 0 & 0 \end{bmatrix}$$
+
+La sintonía de este observador se rige por el principio de separación de anchos de banda. Para garantizar que la dinámica de estimación sea lo suficientemente veloz y no introduzca retardos de fase en el lazo de control regulatorio, la dinámica del observador se diseñó para ser significativamente más rápida que la dinámica de la planta. Específicamente, el polo base del observador ($\omega_{obs}$) se ubicó de manera que su respuesta sea $20$ veces más rápida que el polo dominante de la planta a lazo abierto ($p_{planta} = -b_{eq}/J_{eq}$).
+
+Finalmente, mediante la función \textit{place}, se calculó el vector de ganancias $L$ que fuerza a la matriz característica del error del observador a poseer los autovalores deseados. 
+
+Cabe destacar una consideración numérica importante en la implementación computacional: la función \textit{place} presenta inestabilidades e inconvenientes para invertir matrices cuando se exige la asignación de autovalores repetidos exactos. Para evitar este comportamiento numérico sin alterar la dinámica real del estimador, los tres polos del observador se separaron levemente entre sí (con variaciones del $1\%$ al $2\%$ respecto a la frecuencia base $\omega_{obs}$). Esta técnica estándar asegura un cálculo robusto de las ganancias y garantiza una convergencia asintótica de las estimaciones $\hat{\theta}$, $\hat{\omega}$ y el torque de perturbación $\hat{T}_{dist}$.
 
 \subsection{Modelo del Controlador Regulatorio en Simulink}
 \begin{figure}[H]
@@ -1149,7 +1157,7 @@ Uno de los aprendizajes más importantes fue el valor del modelo físico. Tener 
 
 También fue clave el modelo de los controles, sobre todo por cómo se organizaron los distintos niveles. El uso de herramientas como las máquinas de estado permitió estructurar la lógica de forma más clara y robusta, facilitando la detección de condiciones de falla y la definición de respuestas seguras ante eventos críticos.
 
-En esa parte, un desafío concreto fue adaptar la lógica desarrollada en Stateflow al entorno de Codesys. Pasar de un enfoque gráfico basado en estados y transiciones a una implementación en SFC y ST exigió reordenar la lógica, cuidar el manejo de eventos y temporizaciones, y validar que el comportamiento final se mantuviera equivalente al del modelo original.
+Un desafío concreto fue adaptar la lógica desarrollada en Stateflow al entorno de Codesys. Pasar de un enfoque gráfico basado en estados y transiciones a una implementación en SFC y ST exigió reordenar la lógica, cuidar el manejo de eventos y temporizaciones, y validar que el comportamiento final se mantuviera equivalente al del modelo original.
 
 Por último, el desarrollo de la interfaz gráfica en Unity aportó una representación visual en tiempo real muy útil para validar el comportamiento global de la grúa. Esta etapa permitió además incorporar y comprender la comunicación UDP entre Simulink y Unity, incluyendo el empaquetado y tratamiento de datos.
 
