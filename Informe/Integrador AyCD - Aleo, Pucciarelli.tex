@@ -753,32 +753,37 @@ Bajo la hipótesis de que el lazo interno está correctamente sintonizado, se as
 \end{equation}
 Esta asunción permite desacoplar la dinámica del actuador (masa del carro y fricción) de la dinámica pendular, simplificando significativamente el diseño del controlador externo.
 
-\subsubsection{Deducción de la Ley de Control}
-La ecuación linealizada del péndulo simple excitado por la aceleración del carro $\ddot{x}_t$ es:
+\subsubsection{Deducción de la Ley de Control No Lineal}
+A partir del modelo dinámico (Lagrangiano) de un péndulo simple excitado por la aceleración del carro $\ddot{x}_t$, la ecuación de movimiento está dada por:
 \begin{equation}
-    \ddot{\theta}_l + \frac{g}{l_h}\theta_l = -\frac{1}{l_h}\,\ddot{x}_t
-    \label{eq:pendulo}
+    \ddot{\theta}_l = -\frac{g}{l_h}\sin(\theta_l) - \frac{\ddot{x}_t}{l_h}\cos(\theta_l)
+    \label{eq:pendulo_nolineal}
 \end{equation}
-
-En esta arquitectura, la referencia de velocidad total enviada al variador se compone de la velocidad de trayectoria planificada más la acción de control antibalanceo: $v_{ref} = v_{traj} + v_{sway}$. 
-Si definimos una ley de control antibalanceo estrictamente proporcional al ángulo:
+En esta arquitectura, la referencia de velocidad total enviada al variador del carro se compone de la velocidad de trayectoria planificada más la acción de control antibalanceo: $v_{ref} = v_{traj} + v_{sway}$. 
+Definiendo una ley de control antibalanceo proporcional al ángulo de oscilación:
 \begin{equation}
     v_{sway} = K_{sway} \, \theta_l
     \label{eq:ley_control}
 \end{equation}
-La aceleración resultante del carro impuesta al péndulo será la derivada de la referencia total:
+La aceleración resultante del carro impuesta sobre el pivote del péndulo será la derivada de la referencia total:
 \begin{equation}
     \ddot{x}_t \approx \dot{v}_{traj} + \frac{d}{dt}(K_{sway} \, \theta_l) = \dot{v}_{traj} + K_{sway} \, \dot{\theta}_l
 \end{equation}
-Sustituyendo esta expresión en la ecuación (\ref{eq:pendulo}) y reordenando los términos, se obtiene la ecuación diferencial del sistema en lazo cerrado:
+Sustituyendo esta expresión en la ecuación no lineal (\ref{eq:pendulo_nolineal}) y agrupando los términos dependientes del estado del péndulo a la izquierda, se obtiene la ecuación diferencial del sistema en lazo cerrado:
 \begin{equation}
-    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = -\frac{1}{l_h}\dot{v}_{traj}
-    \label{eq:lazo_cerrado}
+    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \cos(\theta_l) \right) \dot{\theta}_l + \frac{g}{l_h}\sin(\theta_l) = -\frac{\dot{v}_{traj}}{l_h}\cos(\theta_l)
+    \label{eq:lazo_cerrado_nolineal}
 \end{equation}
-Este resultado es fundamental: al inyectar una señal de velocidad proporcional al ángulo, la cinemática del sistema transforma esa señal en una aceleración proporcional a la velocidad angular. Esto introduce el término de amortiguamiento viscoso en el péndulo (actuando dinámicamente como un compensador PD), mientras que la aceleración de la trayectoria $\dot{v}_{traj}$ actúa únicamente como una fuerza forzante que excita el sistema de manera transitoria.
+Este resultado desmuestra que la cinemática del sistema transforma la señal de velocidad inyectada en un término de amortiguamiento viscoso no lineal. Dado que en la operación normal de la grúa el ángulo de oscilación está acotado ($-\pi/2 < \theta_l < \pi/2$), el término $\cos(\theta_l)$ es estrictamente positivo. Esto garantiza que el coeficiente de amortiguamiento sea siempre mayor a cero, asegurando la extracción continua de energía cinética del péndulo y la estabilidad asintótica del sistema ante cualquier ángulo operativo, sin depender de aproximaciones de ángulos pequeños. La aceleración de la trayectoria $\dot{v}_{traj}$ actúa únicamente como una fuerza forzante acotada.
 
-\subsubsection{Sintonía y Gain Scheduling (LPV Simplificado)}
-Para garantizar un desempeño uniforme frente a la variación de la longitud del cable, se comparan los coeficientes de la ecuación (\ref{eq:lazo_cerrado}) con la ecuación canónica de un sistema de segundo orden ($s^2 + 2\zeta\omega_n s + \omega_n^2 = 0$), donde $\omega_n = \sqrt{g/l_h}$ (frecuencia natural del péndulo). Igualando el término de amortiguamiento:
+\subsubsection{Sintonía por Linealización Local (Gain Scheduling)}
+Si bien la estabilidad está garantizada por la dinámica no lineal, para determinar analíticamente el valor óptimo de la ganancia $K_{sway}$ se evalúa el comportamiento del sistema en las cercanías del punto de equilibrio estable ($\theta_l = 0$, $\dot{\theta}_l = 0$). El error es casi despreciable para ángulos de entre $10\circ$ y $5\circ$, y esto permite no solo mayor eficiencia computacional sino también evitar singularidades.
+
+Evaluando la ecuación (\ref{eq:lazo_cerrado_nolineal}) alrededor del origen ($\cos(\theta_l) \to 1$ y $\sin(\theta_l) \to \theta_l$), la dinámica local libre se reduce a:
+\begin{equation}
+    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = 0
+\end{equation}
+Para garantizar un desempeño uniforme frente a la variación de la longitud del cable, se comparan los coeficientes de esta ecuación linealizada localmente con la ecuación canónica de un sistema de segundo orden ($s^2 + 2\,\zeta\,\omega_n \,s + \omega_n^2 = 0$), donde la frecuencia natural es $\omega_n = \sqrt{g/l_h}$. Igualando el término de amortiguamiento:
 \begin{equation}
     \frac{K_{sway}}{l_h} = 2 \, \zeta \, \omega_n \implies K_{sway} = 2 \, \zeta \, l_h \, \sqrt{\frac{g}{l_h}}
 \end{equation}
@@ -786,7 +791,7 @@ Simplificando, obtenemos la ganancia teórica para un amortiguamiento crítico (
 \begin{equation}
     K_{teorico}(l_h) = 2 \,\sqrt{g \, l_h}
 \end{equation}
-Dado que la altura de izaje determina directamente la frecuencia natural del péndulo, el modelo se interpreta como un sistema de parámetros variables (LPV). Para mantener una respuesta invariante, se ajusta la ganancia $K_{sway}$ dinámicamente en función de $l_h$.
+Dado que la altura de izaje determina directamente la dinámica del péndulo, se implementa una estrategia de \textit{gain scheduling}, ajustando la ganancia $K_{sway}$ dinámicamente en función de $l_h$ para mantener las raíces del polinomio característico local invariantes durante toda la operación.
 
 A esta ganancia teórica se le debe aplicar un factor de sintonía ($\lambda$) para ajustar el nivel de amortiguamiento (equivalente a cambiar $\zeta$). Esto se debe a que la velocidad del carro es limitada, por lo que es necesaria una ganancia menor para evitar sobrecorrecciones en la posición de la carga. Después de varias pruebas, se seleccionó $\lambda = 0.45$ para lograr un compromiso entre amortiguamiento efectivo y estabilidad robusta.
 
@@ -1163,5 +1168,14 @@ Por último, el desarrollo de la interfaz gráfica en Unity aportó una represen
 
 \section{Repositorio}
 El proyecto completo, incluyendo los modelos de Simulink, el código en ST para Codesys y la aplicación de Unity, se encuentra disponible en el siguiente \href{https://github.com/nahuelpucciarelli/AyCD-Proyecto.git}{repositorio de GitHub}.
+
+\newpage
+\begin{thebibliography}{9}
+\bibitem{matlab} MATLAB and Simulink. The MathWorks, Inc.
+\bibitem{codesys} CODESYS - The Industry 4.0 Automation Software. 3S-Smart Software Solutions.
+\bibitem{unity} Unity - Game Engine. Unity Technologies.
+\bibitem{siemes} \href{https://assets.new.siemens.com/siemens/assets/api/uuid:e50a2d23-95fc-401a-8f4b-a6aec736a100/simocrane-sway-control-system-for-sts.pdf}{Simocrane Sway Control System for STS. Siemens.}
+\bibitem{swaycontrol} \href{https://www.cmco.com/globalassets/case-studies/sway-control-technology/swaycontrolwhitepaper.pdf}{Sway Control Technology - White Paper. CMCO.}
+\end{thebibliography}
 
 \end{document}
