@@ -5,15 +5,15 @@
  * IEC 61131-3 Structured Text (ST) code generated for subsystem "modelo_planta/Control Nivel 0"
  *
  * Model name                      : modelo_planta
- * Model version                   : 5.22
+ * Model version                   : 5.74
  * Model creator                   : Nahuel
  * Model last modified by          : nahue
- * Model last modified on          : Sat Mar 07 12:25:21 2026
+ * Model last modified on          : Thu Mar 12 12:31:50 2026
  * Model sample time               : 0.001s
  * Subsystem name                  : modelo_planta/Control Nivel 0
  * Subsystem sample time           : 0.02s
  * Simulink PLC Coder version      : 25.2 (R2025b) 28-Jul-2025
- * ST code generated on            : Sat Mar 07 12:28:47 2026
+ * ST code generated on            : Thu Mar 12 16:31:46 2026
  *
  * Target IDE selection            : CODESYS 3.5
  * Test Bench included             : No

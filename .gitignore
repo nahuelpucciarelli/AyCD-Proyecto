@@ -21,7 +21,6 @@ BackupRodri/
 Matlab/Simulink/slprj/
 Matlab/Simulink/plcsrc/
 *.l
-*.xml
 Constantes.asv
 *.slxc
 *.autosave
@@ -31,5 +30,4 @@ Constantes.asv
 *.bootinfo
 *.bootinfo_guids
 *.compileinfo
-*.xml
 
