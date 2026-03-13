@@ -110,12 +110,11 @@ Kf = it/rtd;                                        % Ganancia de conversión to
 
 zitta_t = 1.4;                                      % (orig 1.1)
 wn_t = 0.8;                                         % (orig 0.95)
-N_t = 6.5;                                          % Factor de separación para lazo de posición
+N_t = 8;                                            % Factor de separación para lazo de posición (orig 6.5)
 
 Kp_t = (2*zitta_t*wn_t*Mt)/Kf;                      % Ganancia proporcional lazo velocidad carro
 Ki_t = (wn_t^2*Mt)/Kf;                              % Ganancia integral lazo velocidad carro
 Kpos_t = wn_t/N_t;                                  % Ganancia lazo externo de posición carro
-
 % OBSERVADOR CARRO
 A_aug_t = [0, 1, 0; 0, -bt_eq/Jt_eq, 1/Jt_eq; 0, 0, 0];   
 C_aug_t = [1, 0, 0];
