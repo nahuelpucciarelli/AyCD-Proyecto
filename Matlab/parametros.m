@@ -115,6 +115,8 @@ N_t = 8;                                            % Factor de separación para
 Kp_t = (2*zitta_t*wn_t*Mt)/Kf;                      % Ganancia proporcional lazo velocidad carro
 Ki_t = (wn_t^2*Mt)/Kf;                              % Ganancia integral lazo velocidad carro
 Kpos_t = wn_t/N_t;                                  % Ganancia lazo externo de posición carro
+Kvel_t = 0.75;                                      % Ganancia feedfoward velocidad lazo externo (orig 0.5)
+
 % OBSERVADOR CARRO
 A_aug_t = [0, 1, 0; 0, -bt_eq/Jt_eq, 1/Jt_eq; 0, 0, 0];   
 C_aug_t = [1, 0, 0];
@@ -132,6 +134,7 @@ N_h = 2.5;                                          % Factor de separación. Pue
 Kp_h = 2*zitta_h*wn_h*Jh_eq;                        % Ganancia proporcional lazo velocidad izaje
 Ki_h = (wn_h^2)*Jh_eq;                              % Ganancia integral lazo velocidad izaje
 Kpos_h = wn_h/N_h;                                  % Ganancia lazo externo de posición izaje
+Kvel_h = 0.5;                                       % Ganancia feedfoward velocidad lazo externo
 
 % OBSERVADOR IZAJE
 A_aug_h = [0, 1, 0; 0, -bh_eq/Jh_eq, 1/Jh_eq; 0, 0, 0];   

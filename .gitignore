@@ -25,6 +25,7 @@ Constantes.asv
 *.slxc
 *.autosave
 *.mat
+*.asv
 *.mexw64
 *.bak
 *.bootinfo
