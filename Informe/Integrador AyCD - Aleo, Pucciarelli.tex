@@ -558,7 +558,7 @@ El Nivel 2 corresponde al control regulatorio de las variables continuas del sis
 En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
 
 
-\subsection{Control de Traslación del Carro}
+\subsection{Control de Traslación del Carro (Viejo)}
 Para el control del carro, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
 
 \subsubsection{Modelo del Carro para Control de Velocidad}
@@ -614,6 +614,91 @@ Se utiliza un controlador proporcional:
     v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
 \end{equation}
 lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
+
+\subsection{Control de Traslación del Carro (Nuevo)}
+Para el control del carro, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
+
+\subsubsection{Modelo del Carro para Control de Velocidad}
+Para el diseño del lazo interno de velocidad del carro, se adopta un modelo simplificado traslacional alrededor del punto de operación. Este modelo se obtiene a partir del desarrollo electromecánico anterior, pero referido directamente al movimiento lineal del carro y con una ganancia equivalente fuerza--mando. En esta aproximación se desprecia la dinámica rotacional interna del accionamiento y se agrupan los acoplamientos mecánicos y perturbaciones externas en una fuerza perturbadora equivalente. Así, la dinámica horizontal del carro puede escribirse como:
+\begin{equation}
+    M_t\,\frac{d \, v_t(t)}{dt} + b_t\,v_t(t) = F_{cmd}(t) - F_{dist}(t)
+\end{equation}
+donde
+\begin{equation}
+    F_{cmd}(t)=K_f\,T_{tm}(t)
+\end{equation}
+y
+\begin{equation}
+    F_{dist}(t) = \underbrace{F_{tw}(t)}_{\text{Elasticidad del cable}}
+    - \underbrace{F_{coupling}(t)}_{\text{Acoplamiento con la carga}}
+    + \Delta_{model}(t)
+\end{equation}
+siendo $T_{tm}(t)$ el torque aplicado por el motor y $K_f$ la ganancia equivalente fuerza--torque del conjunto variador--motor--transmisión. En este caso:
+\begin{equation}
+    K_f = \frac{i_t}{r_{td}}
+\end{equation}
+ya que el torque en el tambor cumple $T_{td}=i_t\,T_{tm}$ y la fuerza lineal equivalente sobre el carro resulta $F_{cmd}=T_{td}/r_{td}$.
+
+Aplicando la Transformada de Laplace, la función de transferencia simplificada de la planta velocidad--mando queda:
+\begin{equation}
+    G_{vel,t}(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}
+\end{equation}
+El polo mecánico resulta $P_{mec} = -b_t/M_t$. Dado que el rozamiento equivalente es pequeño frente a la inercia dominante del carro, para la sintonía se adopta la aproximación:
+\begin{equation}
+    G_{vel,t}(s) \approx \frac{K_f}{M_t\,s}
+\end{equation}
+
+\subsubsection{Diseño del Lazo Interno (Control PI de Velocidad)}
+Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
+\begin{equation}
+    C_{vel}(s) = K_p + \frac{K_i}{s}
+\end{equation}
+La función de transferencia a lazo cerrado $T(s)$ resulta:
+\begin{equation}
+    T(s) = \frac{C_{vel}(s) \, G_{vel,t}(s)}{1 + C_{vel}(s) \, G_{vel,t}(s)}
+\end{equation}
+Sustituyendo $C_{vel}(s)$ y $G_{vel,t}(s) \approx \frac{K_f}{M_t\,s}$:
+\begin{equation}
+    T(s) =
+    \frac{\left(K_p + \frac{K_i}{s}\right)\frac{K_f}{M_t\,s}}
+    {1 + \left(K_p + \frac{K_i}{s}\right)\frac{K_f}{M_t\,s}}
+\end{equation}
+Operando algebraicamente, se obtiene:
+\begin{equation}
+    T(s) = \frac{K_p K_f\,s + K_i K_f}{M_t\,s^2 + K_p K_f\,s + K_i K_f}
+\end{equation}
+por lo que la ecuación característica de segundo orden queda:
+\begin{equation}
+    M_t\,s^2 + K_p K_f\,s + K_i K_f
+\end{equation}
+Se iguala con un polinomio deseado de segundo orden:
+\begin{equation}
+    s^2 + 2\,\zeta\,\omega_n\,s + \omega_n^2
+\end{equation}
+obteniéndose las ganancias:
+\begin{equation}
+    K_p = \frac{2\,\zeta\,\omega_n\,M_t}{K_f}, \quad
+    K_i = \frac{\omega_n^2\,M_t}{K_f}
+\end{equation}
+La selección de $\omega_n$ se realiza en función del ancho de banda deseado del carro y las limitaciones de aceleración; típicamente se toma $\zeta \in [0.7,1]$ para evitar sobrepasos.
+
+El torque de referencia en tiempo discreto es:
+\begin{equation}
+    T_{tm}^\ast(k) = K_p\,e_v(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2}\left[e_v(j) + e_v(j-1)\right]
+\end{equation}
+con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
+
+\subsubsection{Diseño del Lazo Externo (Control P de Posición)}
+Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
+\begin{equation}
+    \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
+\end{equation}
+Se utiliza un controlador proporcional:
+\begin{equation}
+    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
+\end{equation}
+lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
+
 
 \subsection{Control de Izaje de la Carga}
 Para el control de la carga en el izaje, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
