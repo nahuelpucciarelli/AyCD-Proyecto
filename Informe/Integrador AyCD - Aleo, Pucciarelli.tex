@@ -557,149 +557,6 @@ El Nivel 2 corresponde al control regulatorio de las variables continuas del sis
 
 En este proyecto, el control regulatorio se encarga de los subsistemas de traslación del carro y de izaje, coordinando sus dinámicas para lograr movimientos simultáneos y seguros. Las señales generadas en este nivel son consignas y comandos de accionamiento que luego son habilitados o bloqueados por el Control Supervisor (Nivel 1) y, ante eventos críticos, anulados por el Nivel de Protección (Nivel 0). De este modo, el Nivel 2 provee el desempeño continuo requerido, mientras los niveles superiores garantizan la lógica de operación y la seguridad global del sistema.
 
-
-\subsection{Control de Traslación del Carro (Viejo)}
-Para el control del carro, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
-
-\subsubsection{Modelo del Carro para Control de Velocidad}
-Partiendo de la ecuación de accionamiento del carro \eqref{accionamiento_carro}, y agrupando las perturbaciones mecánicas en un torque equivalente, se tiene:
-\begin{equation}
-    J_{eq,t}\,\frac{d \, \omega_{tm}(t)}{dt} + b_{eq,t}\,\omega_{tm}(t) = T_{tm}(t) - T_{dist}(t)
-\end{equation}
-donde
-\begin{equation}
-    T_{dist}(t) = \underbrace{\frac{r_{td}}{i_t}\,F_{tw}(t)}_{\text{Carga en el cable}}
-    - \underbrace{T_{tb}(t,\textcolor{cyan}{BRK_t})}_{\text{Freno}}
-    + \Delta_{model}(t)
-\end{equation}
-Usando la relación cinemática $v_t(t) = \frac{r_{td}}{i_t}\,\omega_{tm}(t)$, la función de transferencia velocidad--torque queda:
-\begin{equation}
-    G_{vel,t}(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_t}{J_{eq,t}\,s + b_{eq,t}}, \quad K_t = \frac{r_{td}}{i_t}
-\end{equation}
-El polo mecánico resulta $P_{mec} = -b_{eq,t}/J_{eq,t}$.
-
-\subsubsection{Diseño del Lazo Interno (Control PI de Velocidad)}
-Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
-\begin{equation}
-    C_{vel}(s) = K_p + \frac{K_i}{s}
-\end{equation}
-Con lazo unitario, el denominador del lazo cerrado es:
-\begin{equation}
-    J_{eq,t}\,s^2 + \left(b_{eq,t} + K_p K_t\right)s + K_i K_t
-\end{equation}
-Se iguala con un polinomio deseado de segundo orden:
-\begin{equation}
-    s^2 + 2\,\zeta\,\omega_n\,s + \omega_n^2
-\end{equation}
-obteniéndose las ganancias:
-\begin{equation}
-    K_p = \frac{2\,\zeta\,\omega_n\,J_{eq,t} - b_{eq,t}}{K_t}, \quad
-    K_i = \frac{\omega_n^2\,J_{eq,t}}{K_t}
-\end{equation}
-La selección de $\omega_n$ se realiza en función del ancho de banda deseado del carro y las limitaciones de aceleración; típicamente se toma $\zeta \in [0.7,1]$ para evitar sobrepasos.
-
-El torque de referencia en tiempo discreto es:
-\begin{equation}
-    T_{tm}^\ast(k) = K_p\,e_v(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2}\left[e_v(j) + e_v(j-1)\right]
-\end{equation}
-con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
-
-\subsubsection{Diseño del Lazo Externo (Control P de Oosición)}
-Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
-\begin{equation}
-    \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
-\end{equation}
-Se utiliza un controlador proporcional:
-\begin{equation}
-    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
-\end{equation}
-lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
-
-\subsection{Control de Traslación del Carro (Nuevo)}
-Para el control del carro, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
-
-\subsubsection{Modelo del Carro para Control de Velocidad}
-Para el diseño del lazo interno de velocidad del carro, se adopta un modelo simplificado traslacional alrededor del punto de operación. Este modelo se obtiene a partir del desarrollo electromecánico anterior, pero referido directamente al movimiento lineal del carro y con una ganancia equivalente fuerza--mando. En esta aproximación se desprecia la dinámica rotacional interna del accionamiento y se agrupan los acoplamientos mecánicos y perturbaciones externas en una fuerza perturbadora equivalente. Así, la dinámica horizontal del carro puede escribirse como:
-\begin{equation}
-    M_t\,\frac{d \, v_t(t)}{dt} + b_t\,v_t(t) = F_{cmd}(t) - F_{dist}(t)
-\end{equation}
-donde
-\begin{equation}
-    F_{cmd}(t)=K_f\,T_{tm}(t)
-\end{equation}
-y
-\begin{equation}
-    F_{dist}(t) = \underbrace{F_{tw}(t)}_{\text{Elasticidad del cable}}
-    - \underbrace{F_{coupling}(t)}_{\text{Acoplamiento con la carga}}
-    + \Delta_{model}(t)
-\end{equation}
-siendo $T_{tm}(t)$ el torque aplicado por el motor y $K_f$ la ganancia equivalente fuerza--torque del conjunto variador--motor--transmisión. En este caso:
-\begin{equation}
-    K_f = \frac{i_t}{r_{td}}
-\end{equation}
-ya que el torque en el tambor cumple $T_{td}=i_t\,T_{tm}$ y la fuerza lineal equivalente sobre el carro resulta $F_{cmd}=T_{td}/r_{td}$.
-
-Aplicando la Transformada de Laplace, la función de transferencia simplificada de la planta velocidad--mando queda:
-\begin{equation}
-    G_{vel,t}(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}
-\end{equation}
-El polo mecánico resulta $P_{mec} = -b_t/M_t$. Dado que el rozamiento equivalente es pequeño frente a la inercia dominante del carro, para la sintonía se adopta la aproximación:
-\begin{equation}
-    G_{vel,t}(s) \approx \frac{K_f}{M_t\,s}
-\end{equation}
-
-\subsubsection{Diseño del Lazo Interno (Control PI de Velocidad)}
-Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
-\begin{equation}
-    C_{vel}(s) = K_p + \frac{K_i}{s}
-\end{equation}
-La función de transferencia a lazo cerrado $T(s)$ resulta:
-\begin{equation}
-    T(s) = \frac{C_{vel}(s) \, G_{vel,t}(s)}{1 + C_{vel}(s) \, G_{vel,t}(s)}
-\end{equation}
-Sustituyendo $C_{vel}(s)$ y $G_{vel,t}(s) \approx \frac{K_f}{M_t\,s}$:
-\begin{equation}
-    T(s) =
-    \frac{\left(K_p + \frac{K_i}{s}\right)\frac{K_f}{M_t\,s}}
-    {1 + \left(K_p + \frac{K_i}{s}\right)\frac{K_f}{M_t\,s}}
-\end{equation}
-Operando algebraicamente, se obtiene:
-\begin{equation}
-    T(s) = \frac{K_p K_f\,s + K_i K_f}{M_t\,s^2 + K_p K_f\,s + K_i K_f}
-\end{equation}
-por lo que la ecuación característica de segundo orden queda:
-\begin{equation}
-    M_t\,s^2 + K_p K_f\,s + K_i K_f
-\end{equation}
-Se iguala con un polinomio deseado de segundo orden:
-\begin{equation}
-    s^2 + 2\,\zeta\,\omega_n\,s + \omega_n^2
-\end{equation}
-obteniéndose las ganancias:
-\begin{equation}
-    K_p = \frac{2\,\zeta\,\omega_n\,M_t}{K_f}, \quad
-    K_i = \frac{\omega_n^2\,M_t}{K_f}
-\end{equation}
-La selección de $\omega_n$ se realiza en función del ancho de banda deseado del carro y las limitaciones de aceleración; típicamente se toma $\zeta \in [0.7,1]$ para evitar sobrepasos.
-
-El torque de referencia en tiempo discreto es:
-\begin{equation}
-    T_{tm}^\ast(k) = K_p\,e_v(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2}\left[e_v(j) + e_v(j-1)\right]
-\end{equation}
-con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
-
-\subsubsection{Diseño del Lazo Externo (Control P de Posición)}
-Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
-\begin{equation}
-    \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
-\end{equation}
-Se utiliza un controlador proporcional:
-\begin{equation}
-    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
-\end{equation}
-lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
-
-
 \subsection{Control de Izaje de la Carga}
 Para el control de la carga en el izaje, se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
 
@@ -811,7 +668,91 @@ Finalmente, la ley de control saturada que se envía como referencia al lazo int
     v_{ref}(k) = \text{sat}\left( v_{h,\, cmd}(k), \, \pm v_{h,limit}(\hat{m}_l) \right)
 \end{equation}
 
-\subsection{Generación de Trayectoria (Perfil de Movimiento)}
+\subsection{Control de Traslación del Carro}
+Para el control del carro, también se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
+
+\subsubsection{Modelo del Carro para Control de Velocidad}
+Para el diseño del lazo interno de velocidad del carro, se adopta un modelo simplificado traslacional alrededor del punto de operación. Este modelo se obtiene a partir del desarrollo electromecánico anterior, pero referido directamente al movimiento lineal del carro y con una ganancia equivalente. En esta aproximación se desprecia la dinámica rotacional interna del accionamiento y se agrupan los acoplamientos mecánicos y perturbaciones externas en una fuerza perturbadora equivalente. Así, la dinámica horizontal del carro puede escribirse como:
+\begin{equation}
+    M_t\,\frac{d \, v_t(t)}{dt} + b_t\,v_t(t) = F_{cmd}(t) - F_{dist}(t)
+\end{equation}
+donde
+\begin{equation}
+    F_{cmd}(t)=K_f\,T_{tm}(t)
+\end{equation}
+y
+\begin{equation}
+    F_{dist}(t) = \underbrace{F_{tw}(t)}_{\text{Elasticidad del cable}}
+    - \underbrace{F_{coupling}(t)}_{\text{Acoplamiento con la carga}}
+    + \Delta_{model}(t)
+\end{equation}
+siendo $T_{tm}(t)$ el torque aplicado por el motor y $K_f$ la ganancia equivalente fuerza--torque del conjunto variador--motor--transmisión. En este caso:
+\begin{equation}
+    K_f = \frac{i_t}{r_{td}}
+\end{equation}
+ya que el torque en el tambor cumple $T_{td}=i_t\,T_{tm}$ y la fuerza lineal equivalente sobre el carro resulta $F_{cmd}=T_{td}/r_{td}$.
+
+Aplicando la Transformada de Laplace, la función de transferencia simplificada de la planta velocidad--mando queda:
+\begin{equation}
+    G_{vel,t}(s) = \frac{V_t(s)}{T_{tm}(s)} = \frac{K_f}{M_t\,s + b_t}
+\end{equation}
+El polo mecánico resulta $P_{mec} = -b_t/M_t$. Dado que el rozamiento equivalente es pequeño frente a la inercia dominante del carro, para la sintonía se adopta la aproximación:
+\begin{equation}
+    G_{vel,t}(s) \approx \frac{K_f}{M_t\,s}
+\end{equation}
+
+\subsubsection{Diseño del Lazo Interno (Control PI de Velocidad)}
+Se utiliza un controlador PI para asegurar error nulo de velocidad ante escalones de referencia y buen rechazo de perturbaciones constantes:
+\begin{equation}
+    C_{vel}(s) = K_p + \frac{K_i}{s}
+\end{equation}
+La función de transferencia a lazo cerrado $T(s)$ resulta:
+\begin{equation}
+    T(s) = \frac{C_{vel}(s) \, G_{vel,t}(s)}{1 + C_{vel}(s) \, G_{vel,t}(s)}
+\end{equation}
+Sustituyendo $C_{vel}(s)$ y $G_{vel,t}(s) \approx \frac{K_f}{M_t\,s}$:
+\begin{equation}
+    T(s) =
+    \frac{\left(K_p + \frac{K_i}{s}\right)\frac{K_f}{M_t\,s}}
+    {1 + \left(K_p + \frac{K_i}{s}\right)\frac{K_f}{M_t\,s}}
+\end{equation}
+Operando algebraicamente, se obtiene:
+\begin{equation}
+    T(s) = \frac{K_p K_f\,s + K_i K_f}{M_t\,s^2 + K_p K_f\,s + K_i K_f}
+\end{equation}
+por lo que la ecuación característica de segundo orden queda:
+\begin{equation}
+    M_t\,s^2 + K_p K_f\,s + K_i K_f
+\end{equation}
+Se iguala con un polinomio deseado de segundo orden:
+\begin{equation}
+    s^2 + 2\,\zeta\,\omega_n\,s + \omega_n^2
+\end{equation}
+obteniéndose las ganancias:
+\begin{equation}
+    K_p = \frac{2\,\zeta\,\omega_n\,M_t}{K_f}, \quad
+    K_i = \frac{\omega_n^2\,M_t}{K_f}
+\end{equation}
+La selección de $\omega_n$ se realiza en función del ancho de banda deseado del carro y las limitaciones de aceleración; típicamente se toma $\zeta \in [0.7,1]$ para evitar sobrepasos.
+
+El torque de referencia en tiempo discreto es:
+\begin{equation}
+    T_{tm}^\ast(k) = K_p\,e_v(k) + K_i \sum_{j=1}^{k} \frac{T_s}{2}\left[e_v(j) + e_v(j-1)\right]
+\end{equation}
+con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
+
+\subsubsection{Diseño del Lazo Externo (Control P de Posición)}
+Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
+\begin{equation}
+    \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
+\end{equation}
+Se utiliza un controlador proporcional:
+\begin{equation}
+    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
+\end{equation}
+lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
+
+\subsection{Generación de Trayectoria (Curva S)}
 Dado que tanto el sistema del carro como del izaje poseen límites estrictos de seguridad (velocidades máximas variables y aceleraciones acotadas) no es viable ingresar referencias de tipo escalón a los controladores.
 
 Se diseña un bloque que procesa la consigna de posición del supervisor y genera perfiles cinemáticos suaves en tiempo real. Este módulo asegura que:
@@ -889,8 +830,7 @@ Para resolver este compromiso, se modula la ganancia base mediante un factor de 
 \end{equation}
 La ganancia disminuye cuando la carga ($m_{est}$) es elevada, priorizando la estabilidad del actuador frente a la rapidez de amortiguamiento. Físicamente, esta acción de control provoca que el carro acelere ``debajo'' de la carga cuando esta se adelanta, y frene cuando se atrasa, disipando la energía cinética del péndulo de manera óptima sin desestabilizar el lazo de velocidad interno.
 
-\subsubsection{Conclusiones}
-La arquitectura resultante corresponde a un esquema de control jerárquico ampliamente utilizado en grúas industriales. El controlador de trayectoria genera la referencia principal de movimiento, mientras que el compensador de balanceo actúa en paralelo modulándola. Esta estrategia permite controlar un sistema subactuado introduciendo amortiguamiento efectivo, sin requerir de un complejo modelo Lagrangiano acoplado.
+Como conclusión, se puede decir que la arquitectura resultante corresponde a un esquema de control jerárquico ampliamente utilizado en grúas industriales. El controlador de trayectoria genera la referencia principal de movimiento, mientras que el compensador de balanceo actúa en paralelo modulándola. Esta estrategia permite controlar un sistema subactuado introduciendo amortiguamiento efectivo, sin requerir de un complejo modelo Lagrangiano acoplado.
 
 \subsection{Observadores de Estado}
 Se puede notar de las ecuaciones desarrolladas que la realimentación de velocidad es un parámetro crítico para garantizar la estabilidad de los lazos internos. Dado que la planta física cuenta únicamente con mediciones de posición a través de encoders, la obtención de la velocidad mediante una derivada directa amplifica drásticamente el ruido de cuantificación de los sensores, desestabilizando la señal de control.
@@ -1251,8 +1191,10 @@ Un desafío concreto fue adaptar la lógica desarrollada en Stateflow al entorno
 
 Por último, el desarrollo de la interfaz gráfica en Unity aportó una representación visual en tiempo real muy útil para validar el comportamiento global de la grúa. Esta etapa permitió además incorporar y comprender la comunicación UDP entre Simulink y Unity, incluyendo el empaquetado y tratamiento de datos.
 
-\section{Repositorio}
+\section{Repositorio y Video Demostrativo}
 El proyecto completo, incluyendo los modelos de Simulink, el código en ST para Codesys y la aplicación de Unity, se encuentra disponible en el siguiente \href{https://github.com/nahuelpucciarelli/AyCD-Proyecto.git}{repositorio de GitHub}.
+
+Además, se ha preparado un video demostrativo que muestra el funcionamiento de la grúa en diferentes modos de operación, destacando la interacción entre los niveles de control y la visualización en Unity. El video se puede acceder a través del siguiente \href{https://youtu.be/EwhYYALPttk?si=lQyfEXJ0O0OWh1-4}{enlace a Youtube}.
 
 \newpage
 \begin{thebibliography}{9}
@@ -1261,6 +1203,8 @@ El proyecto completo, incluyendo los modelos de Simulink, el código en ST para 
 \bibitem{unity} Unity - Game Engine. Unity Technologies.
 \bibitem{siemes} \href{https://assets.new.siemens.com/siemens/assets/api/uuid:e50a2d23-95fc-401a-8f4b-a6aec736a100/simocrane-sway-control-system-for-sts.pdf}{Simocrane Sway Control System for STS. Siemens.}
 \bibitem{swaycontrol} \href{https://www.cmco.com/globalassets/case-studies/sway-control-technology/swaycontrolwhitepaper.pdf}{Sway Control Technology - White Paper. CMCO.}
+\bibitem{swaycontrol2} \href{https://sci-hub.st/10.5545/sv-jme.2010.127}{Anti-sway System for Ship-to-Shore Cranes.}
+\bibitem{swaycontrol3} \href{https://sci-hub.st/10.1109/ICIEAM.2018.8728750}{Crane Anti-Sway Control System with Sway Angle Feedback}
 \end{thebibliography}
 
 \end{document}
