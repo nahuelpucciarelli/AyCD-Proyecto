@@ -444,21 +444,14 @@ Luego, la última posición discreta corresponde a:
 \end{equation}
 Por lo que se verifica que el rango de discretización cubre todo el área de operación del carro sin exceder el límite de $x_{t_{max}}$.
 
-Se puede crear un vector $h_i(t)$ de tamaño $N_{x_t}$ que puede ser rellenado con las alturas sensadas por el sensor LIDAR. Se puede calcular el indice $i$ correspondiente a la posicion actual del sensor (teniendo en cuenta el offset respecto al carro) con:
+Para simular el sensado del terreno, se crea un vector $h_{vec}$ de tamaño $N_{x_t}$ que es rellenado con valores de altura representativos del perfil de relieve del terreno real. De esa manera, a medida que el carro se desplaza, las mediciones tomadas por el sensor LIDAR se representan mediante la extracción de los valores de $h_{vec}$ y su guardado en un vector $y_{c0\_vec}$ también de tamaño $N_{x_t}$, e inicialmente nulo. Para saber si una posición ya ha sido escaneada, en memoria se almacena además un vector $is\_scanned\_vec$ también de tamaño $N_{x_t}$ con valores booleanos que indican si la posición correspondiente ya ha sido sensada o no. De esta manera, el sistema de control luego puede tomar diferentes decisiones según si el perfil de obstáculos por donde debe pasar el carro ya ha sido escaneado o no.
+
+Se puede calcular el indice $i$ correspondiente a la posicion actual del sensor (teniendo en cuenta el offset respecto al carro) con:
 \begin{equation}
     i = \text{floor}\left( \frac{(x_t(t)+3\,\text{m}) - x_{t_{min}}}{W_c} \right)
 \end{equation}
 
-Una vez que el vector de alturas $h_i(t)$ se va rellenando, se construye una funcion escalonada continua de base $W_c$, donde cada rectangulo toma la altura del elemento correspondiente del vector:
-\begin{equation}
-    y_{c0}(x,t) = \sum_{i=1}^{N_{x_t}} h_i(t)\cdot
-    \Pi\!\left(\frac{x - x_{pos_i}}{W_c}\right)
-\end{equation}
-con $h_i(t)$ la altura medida en la posicion $x_{pos_i}$ y $\Pi(\xi)$ la funcion caja unitaria.
-
-El vector $h_i(t)$ se actualiza dinámicamente durante la operación de la grúa, permitiendo que el sistema de control y protección utilice el perfil de obstáculos más reciente para planificar movimientos seguros y evitar colisiones.
-
-También se puede permitir la carga de un vector inicial $h_i$ obtenido previamente o de un escenario previo para mantener la continuidad entre simulaciones sucesivas.
+El vector $y_{c0\_vec}$ se actualiza dinámicamente durante la operación de la grúa, permitiendo que el sistema de control y protección utilice el perfil de obstáculos más reciente para planificar movimientos seguros y evitar colisiones.
 
 \subsection{Instrumentación y Sensores de Posición}
 Para la retroalimentación del sistema de control y la protección automática, se modelan sensores de posición continua (encoders) y discretos (fines de carrera).
@@ -672,7 +665,7 @@ Finalmente, la ley de control saturada que se envía como referencia al lazo int
 Para el control del carro, también se opta por una arquitectura de control en cascada (Posición $\to$ Velocidad $\to$ Torque).
 
 \subsubsection{Modelo del Carro para Control de Velocidad}
-Para el diseño del lazo interno de velocidad del carro, se adopta un modelo simplificado traslacional alrededor del punto de operación. Este modelo se obtiene a partir del desarrollo electromecánico anterior, pero referido directamente al movimiento lineal del carro y con una ganancia equivalente. En esta aproximación se desprecia la dinámica rotacional interna del accionamiento y se agrupan los acoplamientos mecánicos y perturbaciones externas en una fuerza perturbadora equivalente. Así, la dinámica horizontal del carro puede escribirse como:
+Para el diseño del lazo interno de velocidad del carro, se adopta un modelo simplificado traslacional alrededor del punto de operación. Este modelo se obtiene a partir de la ecuación (\ref{eq:carro_newton}). En esta aproximación se desprecia la dinámica rotacional interna del accionamiento y se agrupan los acoplamientos mecánicos y perturbaciones externas en una fuerza perturbadora equivalente. Así, la dinámica horizontal del carro puede escribirse como:
 \begin{equation}
     M_t\,\frac{d \, v_t(t)}{dt} + b_t\,v_t(t) = F_{cmd}(t) - F_{dist}(t)
 \end{equation}
@@ -682,7 +675,7 @@ donde
 \end{equation}
 y
 \begin{equation}
-    F_{dist}(t) = \underbrace{F_{tw}(t)}_{\text{Elasticidad del cable}}
+    F_{dist}(t) = \underbrace{F_{tw}(t)}_{\text{Fuerza del cable}}
     - \underbrace{F_{coupling}(t)}_{\text{Acoplamiento con la carga}}
     + \Delta_{model}(t)
 \end{equation}
