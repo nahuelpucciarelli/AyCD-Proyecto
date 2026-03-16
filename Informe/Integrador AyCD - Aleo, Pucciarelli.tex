@@ -760,7 +760,7 @@ El generador entrega la curva de posición ideal ($x_{ref}$ o $y_{ref}$) al lazo
 Para la implementación del sistema de control de oscilación de la carga, se ha optado por una estrategia de Control en Cascada Desacoplado, en lugar de un control centralizado basado en el modelo dinámico completo del sistema (Lagrangiano). A continuación, se fundamenta esta decisión y se deduce la ley de control utilizada.
 
 \subsubsection{Estructura en Cascada Desacoplada}
-El sistema de la grúa STS posee dos dinámicas con escalas de tiempo claramente separadas:
+El sistema de la grúa planteado posee dos dinámicas con escalas de tiempo claramente separadas:
 \begin{enumerate}
     \item \textbf{Dinámica del Accionamiento (Lazo Interno):} El control de velocidad del motor del carro tiene una respuesta rápida (tiempo de establecimiento $< 100$ ms).
     \item \textbf{Dinámica del Péndulo (Lazo Externo):} La oscilación de la carga es un fenómeno lento, con periodos naturales en el orden de los 2 a 12 segundos (dependiendo de la altura de izaje $l_h$).
@@ -796,7 +796,7 @@ Sustituyendo esta expresión en la ecuación no lineal (\ref{eq:pendulo_nolineal
 Este resultado desmuestra que la cinemática del sistema transforma la señal de velocidad inyectada en un término de amortiguamiento viscoso no lineal. Dado que en la operación normal de la grúa el ángulo de oscilación está acotado ($-\pi/2 < \theta_l < \pi/2$), el término $\cos(\theta_l)$ es estrictamente positivo. Esto garantiza que el coeficiente de amortiguamiento sea siempre mayor a cero, asegurando la extracción continua de energía cinética del péndulo y la estabilidad asintótica del sistema ante cualquier ángulo operativo, sin depender de aproximaciones de ángulos pequeños. La aceleración de la trayectoria $\dot{v}_{traj}$ actúa únicamente como una fuerza forzante acotada.
 
 \subsubsection{Sintonía por Linealización Local (Gain Scheduling)}
-Si bien la estabilidad está garantizada por la dinámica no lineal, para determinar analíticamente el valor óptimo de la ganancia $K_{sway}$ se evalúa el comportamiento del sistema en las cercanías del punto de equilibrio estable ($\theta_l = 0$, $\dot{\theta}_l = 0$). El error es casi despreciable para ángulos de entre $10\circ$ y $5\circ$, y esto permite no solo mayor eficiencia computacional sino también evitar singularidades.
+Si bien la estabilidad está garantizada por la dinámica no lineal, para determinar analíticamente el valor óptimo de la ganancia $K_{sway}$ se evalúa el comportamiento del sistema en las cercanías del punto de equilibrio estable ($\theta_l = 0$, $\dot{\theta}_l = 0$). El error es casi despreciable para ángulos de entre $10^\circ$ y $5^\circ$, y esto permite no solo mayor eficiencia computacional sino también evitar singularidades.
 
 Evaluando la ecuación (\ref{eq:lazo_cerrado_nolineal}) alrededor del origen ($\cos(\theta_l) \to 1$ y $\sin(\theta_l) \to \theta_l$), la dinámica local libre se reduce a:
 \begin{equation}
