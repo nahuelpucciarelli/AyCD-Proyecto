@@ -735,15 +735,15 @@ El torque de referencia en tiempo discreto es:
 con $e_v(k) = v_t^\ast(k) - v_t(k)$ y $T_s$ el período de muestreo.
 
 \subsubsection{Diseño del Lazo Externo (Control P de Posición)}
-Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal:
+Con el lazo interno de velocidad estabilizado, el sistema visto desde la posición se aproxima a un integrador ideal, al igual que en el caso del izaje:
 \begin{equation}
     \frac{X_t(s)}{V_t^\ast(s)} \approx \frac{1}{s}
 \end{equation}
 Se utiliza un controlador proporcional:
 \begin{equation}
-    v_t^\ast(t) = K_x \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
+    v_t^\ast(t) = K_{pos} \,\bigl(x_t^\ast(t) - x_t(t)\bigr)
 \end{equation}
-lo que genera una dinámica de primer orden con polo en $-K_x$. La ganancia $K_x$ se ajusta para cumplir los límites de velocidad y aceleración del carro.
+lo que genera una dinámica de primer orden con polo en $-K_{pos}$. La ganancia $K_{pos}$ se ajusta para cumplir los límites de velocidad y aceleración del carro seleccionando un factor de separación $N$.
 
 \subsection{Generación de Trayectoria (Curva S)}
 Dado que tanto el sistema del carro como del izaje poseen límites estrictos de seguridad (velocidades máximas variables y aceleraciones acotadas) no es viable ingresar referencias de tipo escalón a los controladores.
