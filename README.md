@@ -3,7 +3,7 @@
 Para correr la simulación del sistema de forma correcta, es fundamental seguir el orden de ejecución y asegurarse de contar con el hardware necesario.
 
 ### Prerrequisitos
-* **Hardware:** Es necesario tener un **joystick conectado** a la PC antes de iniciar, ya que el modelo de Simulink lo requiere para enviar los comandos de control. El mismo debe tener dos sticks analógicos. Se recomienda cableado, ya que los inalámbricos pueden causar errores de desconexión.
+* **Hardware:** Es necesario tener un **joystick conectado** a la PC antes de iniciar. Este joystick debe poder ser reconocible como un mando de xbox. En caso de no contar con uno, se puede usar un mando genérico y usar alguna de las tantas aplicaciones que hay para remapear las entradas a un mando de xbox. El modelo de Simulink lo requiere para enviar los comandos de control. El mismo debe tener dos sticks analógicos. Se recomienda cableado, ya que los inalámbricos pueden causar errores de desconexión.
 * **Software:** MATLAB/Simulink 2025b o superior.
 
 ### Paso a Paso para la Ejecución
