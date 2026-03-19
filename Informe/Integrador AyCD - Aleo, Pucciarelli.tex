@@ -110,7 +110,7 @@ Donde $x_{td}$ y $v_{td}$ son la posición y velocidad lineal equivalente del ca
     \begin{equation} \label{eq:eje_rapido}
         J_{tm+tb} \, \frac{d \, \omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - b_{tm} \, \omega_{tm}(t) - T_{tml}(t)
     \end{equation}
-    Donde $T_{tml}$ es el torque resistente que la caja reductora demanda al motor.
+    Donde $T_{tml}(t)$ es el torque resistente que la caja reductora demanda al motor.
 \end{itemize}
 
 \subsubsection*{Modelo del Freno Mecánico de Operación}
@@ -118,7 +118,7 @@ El sistema dispone de un freno mecánico en el eje rápido del motor, configurad
 
 Para evitar discontinuidades numéricas abruptas durante la simulación (chattering) al momento de la detención, se modela la fricción del freno cerrado utilizando una función tangente hiperbólica escalada, tal como sugiere la especificación técnica:
 \begin{equation} \label{eq:brake_model}
-    T_{tb}(t) = 
+    T_{tb}(t,\textcolor{cyan}{BRK_t}) = 
     \begin{cases} 
         0 & \text{si } \textcolor{cyan}{BRK_t} = 1 \text{ (Abierto/Energizado)} \\
         -T_{tb\_Max} \, \tanh(b_{tb} \, \omega_{tm}(t)) & \text{si } \textcolor{cyan}{BRK_t} = 0 \text{ (Cerrado/Frenado)}
@@ -132,23 +132,23 @@ Para la simulación y el diseño de control, es necesario unificar las ecuacione
 
 La caja reductora vincula el eje rápido y el lento mediante la relación de transmisión $i_t$:
 \begin{align}
-    \text{Velocidades:} & \quad \omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t} \implies \frac{d \, \omega_{td}}{dt} = \frac{1}{i_t}\frac{d\omega_{tm}}{dt} \label{eq:rel_vel} \\
+    \text{Velocidades:} & \quad \omega_{td}(t) = \frac{\omega_{tm}(t)}{i_t} \implies \frac{d \, \omega_{td}(t)}{dt} = \frac{1}{i_t}\frac{d\omega_{tm}(t)}{dt} \label{eq:rel_vel} \\
     \text{Torques:} & \quad T_{td}(t) = T_{tml}(t) \, i_t \label{eq:rel_torque}
 \end{align}
 
 Sustituyendo las relaciones (\ref{eq:rel_vel}) y (\ref{eq:rel_torque}) en la ecuación del eje lento (\ref{eq:eje_lento}):
 \begin{equation*}
-    J_{td} \, \left( \frac{1}{i_t} \frac{d \, \omega_{tm}}{dt} \right) = (T_{tml} \, i_t) - b_{td} \, \left( \frac{\omega_{tm}}{i_t} \right) - T_{tdl}
+    J_{td} \, \left( \frac{1}{i_t} \frac{d \, \omega_{tm}(t)}{dt} \right) = (T_{tml}(t) \, i_t) - b_{td} \, \left( \frac{\omega_{tm}(t)}{i_t} \right) - T_{tdl}(t)
 \end{equation*}
 
 Para despejar el torque de carga en el eje motor ($T_{tml}$), dividimos toda la ecuación por $i_t$:
 \begin{equation}
-    \frac{J_{td}}{i_t^2}\, \frac{d \, \omega_{tm}}{dt} = T_{tml} - \frac{b_{td}}{i_t^2} \, \omega_{tm} - \frac{T_{tdl}}{i_t}
+    \frac{J_{td}}{i_t^2}\, \frac{d \, \omega_{tm}(t)}{dt} = T_{tml}(t) - \frac{b_{td}}{i_t^2} \, \omega_{tm}(t) - \frac{T_{tdl}(t)}{i_t}
 \end{equation}
 
 Despejando $T_{tml}$ y sustituyéndolo en la ecuación del eje rápido (\ref{eq:eje_rapido}), obtenemos la ecuación unificada:
 \begin{equation}
-    \left( J_{tm+tb} + \frac{J_{td}}{i_t^2} \right) \frac{d \, \omega_{tm}}{dt} = T_{tm} + T_{tb} - \left( b_{tm} + \frac{b_{td}}{i_t^2} \right) \omega_{tm} - \frac{T_{tdl}}{i_t}
+    \left( J_{tm+tb} + \frac{J_{td}}{i_t^2} \right) \frac{d \, \omega_{tm}(t)}{dt} = T_{tm}(t) + T_{tb}(t,\textcolor{cyan}{BRK_t}) - \left( b_{tm} + \frac{b_{td}}{i_t^2} \right) \omega_{tm}(t) - \frac{T_{tdl}(t)}{i_t}
 \end{equation}
 
 Se definen los parámetros equivalentes totales:
@@ -308,11 +308,11 @@ El sistema posee dos frenos y una transmisión.
 \begin{itemize}
     \item \textbf{Eje Lento (Tambor):} Posee el Freno de Emergencia ($T_{hEb}$).
     \begin{equation}
-        J_{hd+hEb} \, \frac{d \, \omega_{hd}}{dt} = T_{hd} + T_{hEb} - b_{hd} \, \omega_{hd} - T_{hdl}
+        J_{hd+hEb} \, \frac{d \, \omega_{hd}(t)}{dt} = T_{hd}(t) + T_{hEb}(\textcolor{cyan}{BRK_{hE}}) - b_{hd} \, \omega_{hd}(t) - T_{hdl}(t)
     \end{equation}
     \item \textbf{Eje Rápido (Motor):} Posee el Freno de Operación ($T_{hb}$).
     \begin{equation}
-        J_{hm+hb} \, \frac{d \, \omega_{hm}}{dt} = T_{hm} + T_{hb} - b_{hm} \, \omega_{hm} - T_{hml}
+        J_{hm+hb} \, \frac{d \, \omega_{hm}(t)}{dt} = T_{hm}(t) + T_{hb}(\textcolor{cyan}{BRK_{h}}) - b_{hm} \, \omega_{hm}(t) - T_{hml}(t)
     \end{equation}
 \end{itemize}
 
@@ -327,7 +327,7 @@ A diferencia del carro, el sistema de izaje cuenta con dos sistemas de frenado i
 \begin{itemize}
     \item \textbf{Freno de Operación (Eje Rápido):} Ubicado en el eje del motor, actúa durante las paradas normales y el mantenimiento de posición (parking).
     \begin{equation} \label{eq:brake_hoist_op}
-        T_{hb}(t) = 
+        T_{hb}(t,\textcolor{cyan}{BRK_{h}}) = 
         \begin{cases} 
             0 & \text{si } \textcolor{cyan}{BRK_h} = 1 \text{ (Energizado/Abierto)} \\
             -T_{hb\_Max} \, \tanh(b_{hb} \, \omega_{hm}(t)) & \text{si } \textcolor{cyan}{BRK_h} = 0 \text{ (Desenergizado/Cerrado)}
@@ -335,7 +335,7 @@ A diferencia del carro, el sistema de izaje cuenta con dos sistemas de frenado i
     \end{equation}
     \item \textbf{Freno de Emergencia (Eje Lento):} Ubicado directamente sobre el tambor, actúa solo ante fallas críticas (Nivel 0 de Protección) o parada de emergencia.
     \begin{equation} \label{eq:brake_hoist_emg}
-        T_{hEb}(t) = 
+        T_{hEb}(t,\textcolor{cyan}{BRK_{h}}) = 
         \begin{cases} 
             0 & \text{si } \textcolor{cyan}{BRK_{hE}} = 1 \text{ (Energizado/Abierto)} \\
             -T_{hEb\_Max} \, \tanh(b_{hEb} \, \omega_{hd}(t)) & \text{si } \textcolor{cyan}{BRK_{hE}} = 0 \text{ (Desenergizado/Cerrado)}
@@ -413,9 +413,9 @@ Finalmente, las ecuaciones diferenciales se ordenan despejando las derivadas de 
 \begin{itemize}
     \item Rigidez variable: $K_{hw}(l_h) = \frac{k_{hwu}}{2 l_h(t) + L_{h0}}$
     \item Amortiguamiento variable: $b_{hw}(l_h) = b_{hwu}\,(2 l_h(t) + L_{h0})$
-    \item Longitud geométrica actual (Pitágoras): $l(t) = \sqrt{(x_l - x_t)^2 + (Y_{t0} - y_l)^2} \quad$ ($Y_{t0}$ es la altura fija de poleas de izaje en el carro)
+    \item Longitud geométrica actual (Pitágoras): $l(t) = \sqrt{(x_l(t) - x_t(t))^2 + (Y_{t0} - y_l(t))^2} \quad$ ($Y_{t0}$ es la altura fija de poleas de izaje en el carro)
     \item Velocidad de cambio de longitud (para el amortiguamiento):
-    \[ \frac{dl(t)}{dt} = \frac{(x_l - x_t)(v_{lx} - v_t) - (Y_{t0} - y_l)v_{ly}}{l(t)} \]
+    \[ \frac{dl(t)}{dt} = \frac{(x_l(t) - x_t(t))(v_{lx}(t) - v_t(t)) - (Y_{t0} - y_l(t))v_{ly}(t)}{l(t)} \]
     \item Cálculo del ángulo de balanceo:
     \[ \theta_l = \text{atan2}\left(\frac{x_l(t) - x_t(t)}{Y_{t0} - y_l(t)}\right) \]
 \end{itemize}
@@ -562,7 +562,7 @@ La ecuación de balance de torques en el eje del motor es:
 \end{equation}
 $T_{dist}(t)$ es el torque perturbador que encapsula todas las dinámicas no lineales y externas al accionamiento:
 \begin{equation}
-    T_{dist}(t) = \underbrace{\frac{F_{hw}(t) \, r_{hd}}{i_h}}_{\text{Tensión de Cable}} + \underbrace{T_{hb}(t) + \frac{T_{hEb}(t)}{i_h}}_{\text{Fricción de Frenos}}
+    T_{dist}(t) = \underbrace{\frac{F_{hw}(t) \, r_{hd}}{i_h}}_{\text{Tensión de Cable}} + \underbrace{T_{hb}(t,\textcolor{cyan}{BRK_h}) + \frac{T_{hEb}(t,\textcolor{cyan}{BRK_{hE}})}{i_h}}_{\text{Fricción de Frenos}}
 \end{equation}
 Aplicando la Transformada de Laplace, la función de transferencia de la planta es:
 \begin{equation} \label{eq:G_vel}
