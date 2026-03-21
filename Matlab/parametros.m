@@ -148,7 +148,7 @@ polos_obs_h = [wh_obs, wh_obs*1.01, wh_obs*1.02];   % Separamos polos ligerament
 Lh = place(A_aug_h', C_aug_h', polos_obs_h)';       % Cálculo de ganancias
 %%
 %[text] ## PARÁMETROS CONTROLADOR BALANCEO
-lambda = 0.45;        % Factor de sintonía de la ganacia K_sway
+lambda = 0.45;        % Factor de amortiguamiento del balanceo (lo mismo que zitta)
 %%
 %[text] ## PARÁMETROS WATCHDOG
 periodo_pulsos = 100;               % Pulsos cada 100 ms

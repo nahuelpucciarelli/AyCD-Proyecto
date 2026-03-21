@@ -79,6 +79,7 @@
       <Node name="modo_posicion_segura" type="T_BOOL" access="ReadWrite" />
       <Node name="modo_standby" type="T_BOOL" access="ReadWrite" />
       <Node name="recup_ok" type="T_BOOL" access="ReadWrite" />
+      <Node name="seleccionando" type="T_BOOL" access="ReadWrite" />
       <Node name="seleccionando_i" type="T_ARRAY__1__2__OF_INT" access="ReadWrite" />
       <Node name="sobrecarga" type="T_BOOL" access="ReadWrite" />
       <Node name="theta_l" type="T_LREAL" access="ReadWrite" />
