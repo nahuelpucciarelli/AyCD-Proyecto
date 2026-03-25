@@ -891,7 +891,7 @@ El Nivel 0 representa la capa de protección más baja y con mayor jerarquía de
 
 La lógica de seguridad se modeló mediante dos procesos paralelos continuos:
 
-\subsection{MAutómata de Estados de Seguridad}
+\subsection{Autómata de Estados de Seguridad}
 Esta máquina de estados supervisa constantemente el estado físico de la máquina a través de la redundancia de sensores. Durante la operación normal, el sistema permanece en el estado \texttt{SISTEMA\_OK}. 
 
 Dentro de este estado nominal, el bloque realiza un cálculo dinámico crítico: ajusta en tiempo real el límite de velocidad de izaje permitido ($vh\_lim$) en función de la masa actual de la carga. Esto garantiza que el motor nunca exceda su potencia nominal ($P_{nom}$), comportándose según una curva de potencia constante (sobrevelocidad).
@@ -971,17 +971,17 @@ A continuación se presentan algunas capturas en diferentes estados de la grúa,
     \caption{Modo de Posición Segura. De forma automática, la grúa se mueve a una posición de resguardo para proteger la integridad de la carga y el equipo.}
 \end{figure}
 
-\section{Diseño en ST y Codesys}
-Todos los controladores se han diseñado en Stateflow, sin embargo, para la implementación en hardware real, se debe traducir la lógica desarrollada a un programa en Codesys utilizando el lenguaje de programación estructurado (ST). Este proceso implica mapear cada bloque funcional a funciones y estructuras de control equivalentes en ST, asegurando que la lógica de control se mantenga intacta durante la transición al entorno de ejecución real. Puede verse a continuación la estructura resultante:
+\section{CODESYS y ST}
+Todos los controladores se han diseñado en Stateflow, sin embargo, para la implementación en hardware real, se debe traducir la lógica desarrollada a un programa en CODESYS utilizando el lenguaje de programación estructurado (ST). Este proceso implica mapear cada bloque funcional a funciones y estructuras de control equivalentes en ST, asegurando que la lógica de control se mantenga intacta durante la transición al entorno de ejecución real. Puede verse a continuación la estructura resultante:
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.5\textwidth]{arbol_codesys.png}
-    \caption{Codesys - Árbol de componentes.}
+    \caption{CODESYS - Árbol de componentes.}
 \end{figure}
 
-Los 4 POUs principales corresponden a los 3 niveles de control, separado el control regulatorio en control del carro y del izaje. Estos 4 programas se ejecutan de forma cíclica y en paralelo. Sin embargo en Codesys debido a la utilización de un PLC virtual con una sola CPU, estas tareas se ejecutan de forma secuencial pero de manera intercalada. A pesar de la limitación, se ejecuta a tal velocidad que, a fines prácticos, el comportamiento es idéntico al de un sistema con múltiples CPUs ejecutando tareas en paralelo (o múltiples PLCs).
+Los 4 POUs principales corresponden a los 3 niveles de control, separado el control regulatorio en control del carro y del izaje. Estos 4 programas se ejecutan de forma cíclica y en paralelo. Sin embargo en CODESYS debido a la utilización de un PLC virtual con una sola CPU, estas tareas se ejecutan de forma secuencial pero de manera intercalada. A pesar de la limitación, se ejecuta a tal velocidad que, a fines prácticos, el comportamiento es idéntico al de un sistema con múltiples CPUs ejecutando tareas en paralelo (o múltiples PLCs).
 
-\subsection{Control Regulatorio (Nivel 2) en Codesys}
+\subsection{Control Regulatorio (Nivel 2) en CODESYS}
 Remitiéndose a la sección de diseño del control regulatorio, se rediseñó usando la misma lógica pero representándola con bloques de función de Matlab:
 \begin{figure}[H]
     \centering
@@ -994,19 +994,19 @@ Remitiéndose a la sección de diseño del control regulatorio, se rediseñó us
     \caption{Control de Izaje con funciones de Matlab.}
 \end{figure}
 
-Una vez llevado a bloques de función es sencillo realizar la traducción a ST en Codesys, manteniendo la misma lógica de control.
+Una vez llevado a bloques de función, es relativamente directo realizar la traducción a ST, manteniendo la misma lógica de control.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{codesys_regulatorio.png}
-    \caption{Control de Izaje en Codesys (ST).}
+    \caption{Control de Izaje en CODESYS (ST).}
 \end{figure}
 
-\subsection{Control Supervisor (Nivel 1) en Codesys}
+\subsection{Control Supervisor (Nivel 1) en CODESYS}
 Para el control supervisor se debe repensar la forma de traducir los bloques de Stateflow a SFC, ya que no es tan directo. De este proceso se obtuvo un conjunto de varios bloques en paralelo:
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{codesys_supervisor11.png}
-    \caption{Codesys - Diagrama general de control supervisor.}
+    \caption{CODESYS - Diagrama general de control supervisor.}
 \end{figure}
 A diferencia de Stateflow, se debe agregar un estado paralelo adicional \texttt{LECTURA\_BOTONES}, el cuál se encarga exclusivamente de detectar flancos de subida de los botones presionados por el usuario.
 
@@ -1021,7 +1021,7 @@ El autómata principal se desarrolla de forma similar, y se encarga de alternar 
         \centering
         \includegraphics[width=\linewidth]{codesys_supervisor13.png}
     \end{subfigure}
-    \caption{Codesys - Supervisor - Autómata principal.}
+    \caption{CODESYS - Supervisor - Autómata principal.}
 \end{figure}
 
 Para el modo automático se tuvo que modificar ligeramente las transiciones. En SFC, si se interrumpe un paso y salimos del modo automático, al volver al mismo no comienza por el paso inicial, sino que retoma en el paso interrumpido. Para evitar este comportamiento indeseado se agregó una variable adicional que permite transicionar al paso inicial. Esto no ocurre en Stateflow, ya que al entrar el modo automático éste siempre comienza a ejecutarse desde el estado inicial. En la siguiente imágen se puede ver la implementación utilizada:
@@ -1032,47 +1032,47 @@ Para el modo automático se tuvo que modificar ligeramente las transiciones. En 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{codesys_supervisor16.png}
-    \caption{Codesys - Supervisor - Autómata principal - Auto.}
+    \caption{CODESYS - Supervisor - Autómata principal - Auto.}
 \end{figure}
 
 Sin modificaciones notorias, se replica el bloque encargado de la lógica de los Twistlocks. Como es un SFC cíclico, el último paso regresa al inicial al cumplir su transición:
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{codesys_supervisor4.png}
-    \caption{Codesys - Supervisor - Lógica de Twistlocks.}
+    \caption{CODESYS - Supervisor - Lógica de Twistlocks.}
 \end{figure}
 
 De la misma forma, se utilizan las entradas de los sensores para calcular la posición discreta del carro y actualizar el perfil de obstáculos, información que es fundamental para la generación de trayectorias seguras en modo automático. También se actualiza la posición de la cruceta:
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.55\textwidth]{codesys_supervisor14.png}
-    \caption{Codesys - Supervisor - Cruceta Índices Perfil.}
+    \caption{CODESYS - Supervisor - Cruceta Índices Perfil.}
 \end{figure}
 
 Los bloques de \textit{Suavizador Velocidad}, \textit{Límites Suave} y \textit{Watchdog Heartbeat} se mantienen prácticamente iguales, desarrollados en ST directamente debido a su sencillez.
 
-\subsection{Control de Seguridad (Nivel 0) en Codesys}
+\subsection{Control de Seguridad (Nivel 0) en CODESYS}
 Para el control de seguridad se mantuvo el mismo diseño, esta vez con dos procesos paralelos, uno para la máquina de estados de seguridad y otro para el watchdog. La lógica de ambos procesos se mantuvo prácticamente igual, con pequeñas modificaciones para adaptarse a la sintaxis y estructura de SFC.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.5\textwidth]{codesys_seguridad1.png}
-    \caption{Codesys - Seguridad - Diagrama general del control de seguridad.}
+    \caption{CODESYS - Seguridad - Diagrama general del control de seguridad.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{codesys_seguridad22.png}
-    \caption{Codesys - Seguridad - Estados de Seguridad.}
+    \caption{CODESYS - Seguridad - Estados de Seguridad.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{codesys_seguridad3.png}
-    \caption{Codesys - Seguridad - Watchdog.}
+    \caption{CODESYS - Seguridad - Watchdog.}
 \end{figure}
 
-\subsection{Comunicación Simulink-Codesys}
-Para poder comunicar el PLC virtual de Codesys con Simulink, se utilizó el protocolo de comunicación industrial \texttt{OPC-UA}. La versión de Codesys utilizada (CODESYS V3.5 SP21 Patch 2) cuenta con la posibilidad de montar un servidor OPC-UA y de seleccionar qué variables del programa se quieren exponer a través de este protocolo. Por otro lado, Matlab R2025b cuenta con un cliente OPC-UA que permite conectarse a este servidor y leer/escribir las variables expuestas en tiempo real.
+\subsection{Comunicación OPC Simulink/CODESYS}
+Para poder comunicar el PLC virtual de CODESYS con Simulink, se utilizó el protocolo de comunicación industrial \texttt{OPC-UA}. La versión de CODESYS utilizada (CODESYS V3.5 SP21 Patch 2) cuenta con la posibilidad de montar un servidor OPC-UA y de seleccionar qué variables del programa se quieren exponer a través de este protocolo. Por otro lado, Matlab R2025b cuenta con un cliente OPC-UA que permite conectarse a este servidor y leer/escribir las variables expuestas en tiempo real.
 
 Para permitir una conexión adecuada, se modificó algunos ajustes del dispositivo que hace de servidor. Se configuró sin encriptación, y la configuración de Device Security Settings se ve de la siguiente forma:
 \begin{figure}[H]
@@ -1084,13 +1084,13 @@ También se desahabilitó el certificado de OPC-UA en Security Screen, y se movi
     \centering
     \includegraphics[width=1\textwidth]{config_OPC2.png}
 \end{figure}
-Estos ajustes permiten a Simulink conectarse al servidor OPC-UA de Codesys sin problemas, y leer/escribir las variables expuestas en tiempo real. Sin embargo, lo hace de forma anónima y sin seguridad alguna, lo cual no es recomendable para un entorno real, pero para fines de simulación y pruebas es suficiente.
+Estos ajustes permiten a Simulink conectarse al servidor OPC-UA de CODESYS sin problemas, y leer/escribir las variables expuestas en tiempo real. Sin embargo, lo hace de forma anónima y sin seguridad alguna, lo cual no es recomendable para un entorno real, pero para fines de simulación y pruebas es suficiente.
 
 Debido a la naturaleza de la comunicación OPC, cada lectura o escritura de una variable implica un proceso de comunicación cliente-servidor que introduce un retardo significativo. Este retardo se vuelve especialmente problemático cuando se intenta realizar lecturas/escrituras a alta frecuencia, lo cual es necesario para el control supervisor y más aún para el control regulatorio. OPC es un estandar de tipo TCP/IP, el cuál está diseñado para sistemas SCADA, con retardos de comunicación de $500$ ms o más, y no para sistemas de control en tiempo real. 
 
 Para mitigar un poco este problema, se decidió implementar bloques de comunicación que se ejecuten a diferentes tiempos de muestreo. Esto enlentece la respuesta del modelo, causando delays peligrosos para la seguridad, pero permite que el sistema funcione de forma estable. El control regulatorio se ejecuta a $100$ ms, el control supervisor y de seguridad a $500$ ms. Para no tener errores con el heartbeat del watchdog, su variable corre al tiempo de muestro original de $20$ ms. De esta forma, se reduce la cantidad de lecturas/escrituras por segundo, disminuyendo la carga en la red y permitiendo Simulink pueda correr a $1$s por segundo de simulación.
 
-Luego de algunas pruebas y reajustes, se mejoró significativamente la fluidez de la simulación, manteniendo una comunicación efectiva entre Simulink y Codesys. Y se ha podido comprobar de forma satisfactoria que el controlador responde de la misma manera que el modelado en Simulink.
+Luego de algunas pruebas y reajustes, se mejoró significativamente la fluidez de la simulación, manteniendo una comunicación efectiva entre Simulink y CODESYS. Y se ha podido comprobar de forma satisfactoria que el controlador responde de la misma manera que el modelado en Simulink.
 
 A continuación, los bloques de escritura/lectura de las variables de control regulatorio, supervisor y seguridad, respectivamente:
 \begin{figure}[H]
@@ -1109,6 +1109,51 @@ A continuación, los bloques de escritura/lectura de las variables de control re
     \caption{Simulink - Cliente OPC-UA - Control de Seguridad.}
 \end{figure}
 
+\subsection{Comunicación UDP Simulink/CODESYS}
+Debido al retardo que se produce en la comunicación, consideramos que OPC no es un protocolo adecuado para la comunicación entre la simulación y el controlador. Para probar esta hipótesis, se implementó una comunicación alternativa utilizando el protocolo UDP, que es un protocolo de comunicación sin conexión y de baja latencia. Esto permite a la simulación correr en tiempo real, sin experimentar retrasos significativos en la comunicación. Se implementó para el control supervisor y de seguridad, dejando de lado el control regulatorio, ya que requiere una mayor velocidad de comunicación que incluso con UDP es difícil de mantener.
+
+La implementación UDP es un poco más compleja, requiere el desarrollo de un protocolo de empaquetado y desempaquetado de datos, así como la sincronización entre los sistemas. Se creó por lo tanto dos programas adicionales en CODESYS, uno para enviar los datos a Simulink (\texttt{COM\_UDP\_TX}), y otro para recibir las variables desde Simulink (\texttt{COM\_UDP\_RX}). 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{com_udp_codesys.png}
+    \caption{Nuevas funciones de comunicación UDP en CODESYS.}
+\end{figure}
+
+Los archivos de trama son de tipo DUT (Data Unit Type), y se definen como estructuras que organizan los datos a enviar. El orden es vital, ya que por UDP solo se envian bytes en un vector, y el receptor debe conocer el orden y tipo de cada dato para poder desempaquetarlo correctamente. 
+
+Los programas \texttt{COM} se encargan de repartir los valores de las variables a enviar o recibir a sus respectivas posiciones en la trama, y luego utilizan librerías con varibales de envío o recepción.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{com_udp_rx.png}
+    \caption{Función de Recepción UDP en CODESYS.}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{com_udp_tx.png}
+    \caption{Función de Transmisión UDP en CODESYS.}
+\end{figure}
+
+En Simulink, al igual que con la comunicación con la animación, se implementaron bloques de lectura/escritura de UDP, permitiendo enviar y recibir datos en tiempo real sin los retrasos de OPC.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{simulink_udp_codesys.png}
+    \caption{Diseño UDP en Simulink.}
+\end{figure}
+
+Para lograr una sincronización adecuada, se debe programar una tarea en CODESYS que ejecute la funcion de lectura de datos más rápido que la de envío, para evitar pérdida de información. En este caso, se programó a $10$ ms, mientras que el bloque de escritura se ejecuta a $20$ ms. Además, el orden de ejecución también es vital, por lo que la prioridad más elevada es para la lectura (luego el control de seguridad, el control supervisor, y por último el envío de datos). En Simulink es necesario activar \textit{pacing} a tiempo real, es decir, 1 segundo.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{task_config.png}
+    \caption{Task Configuration en CODESYS.}
+\end{figure}
+
+A continuación se muestra una captura de la simulación funcionando a través de UDP:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{ejemplo_UDP.png}
+    \caption{Simulación funcionando a través de UDP.}
+\end{figure}
+
 \section{Generación Automática de Código ST}
 Simulink ofrece una herramienta llamada PLC Coder, que ofrece la capacidad de traducir automáticamente diagramas Stateflow a Texto Estructurado (ST) bajo la norma IEC 61131-3. Se procedió a analizar el código ST resultante de esta autogeneración. Se puede observar que el traductor implementa el autómata de forma ``plana'' y monolítica. Para lograrlo, recurre a una estructura de control \texttt{CASE} global que evalúa una variable entera representativa del estado actual, combinada con una densa red de sentencias \texttt{IF/ELSIF} anidadas para resolver las transiciones y acciones correspondientes.
 
@@ -1119,43 +1164,41 @@ Sin embargo, la divergencia crítica entre ambos enfoques radica en la legibilid
 Esta estrategia mantiene la potencia de cálculo del ST para las leyes de control cinemático, mientras que el entorno SFC proporciona un diagnóstico más visual. A continuación se muestran fragmentos del código autogenerado para el control de seguridad, evidenciando la complejidad y falta de claridad que presenta:
 \begin{figure}[H]
     \centering
-    \begin{subfigure}{0.85\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{codigo_auto1.png}
-    \end{subfigure}
-    \begin{subfigure}{0.85\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{codigo_auto2.png}
-    \end{subfigure}
+    \includegraphics[width=1\linewidth]{codigo_auto1.png}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{codigo_auto2.png}
     \caption{Código generado por PLC Coder - Fragmentos del control de seguridad.}
 \end{figure}
 
 \newpage
 \section{Conclusiones}
-En este proyecto se logró atravesar las diferentes etapas del diseño de control, desde la modelación física y el desarrollo de controladores en Simulink, hasta la implementación en Codesys y la integración con una aplicación de visualización en Unity. En ese sentido, fue un trabajo integral de control mecatrónico, porque no se quedó solo en la simulación ni solo en la programación del PLC, sino que conectó modelado, control, supervisión y validación visual dentro de un mismo flujo.
+En este proyecto se logró atravesar las diferentes etapas del diseño de control, desde la modelación física y el desarrollo de controladores en Simulink, hasta la implementación en CODESYS y la integración con una aplicación de visualización en Unity. En ese sentido, fue un trabajo integral de control mecatrónico, porque no se quedó solo en la simulación ni solo en la programación del PLC, sino que conectó modelado, control, supervisión y validación visual dentro de un mismo flujo.
 
 Uno de los aprendizajes más importantes fue el valor del modelo físico. Tener una base dinámica razonable permitió diseñar y ajustar mejor los controladores, pero también dejó claro que todo modelo tiene límites y simplificaciones. Considerar esas limitaciones desde el principio ayudó a interpretar mejor los resultados y a no asumir comportamientos ideales que después no se sostienen al pasar a una arquitectura industrial.
 
 También fue clave el modelo de los controles, sobre todo por cómo se organizaron los distintos niveles. El uso de herramientas como las máquinas de estado permitió estructurar la lógica de forma más clara y robusta, facilitando la detección de condiciones de falla y la definición de respuestas seguras ante eventos críticos.
 
-Un desafío concreto fue adaptar la lógica desarrollada en Stateflow al entorno de Codesys. Pasar de un enfoque gráfico basado en estados y transiciones a una implementación en SFC y ST exigió reordenar la lógica, cuidar el manejo de eventos y temporizaciones, y validar que el comportamiento final se mantuviera equivalente al del modelo original.
+Un desafío concreto fue adaptar la lógica desarrollada en Stateflow al entorno de CODESYS. Pasar de un enfoque gráfico basado en estados y transiciones a una implementación en SFC y ST exigió reordenar la lógica, cuidar el manejo de eventos y temporizaciones, y validar que el comportamiento final se mantuviera equivalente al del modelo original.
 
-Por último, el desarrollo de la interfaz gráfica en Unity aportó una representación visual en tiempo real muy útil para validar el comportamiento global de la grúa. Esta etapa permitió además incorporar y comprender la comunicación UDP entre Simulink y Unity, incluyendo el empaquetado y tratamiento de datos.
+El desarrollo de la interfaz gráfica en Unity aportó una representación visual en tiempo real muy útil para validar el comportamiento global de la grúa. Esta etapa permitió además incorporar y comprender la comunicación UDP entre Simulink y Unity, incluyendo el empaquetado y tratamiento de datos. 
+
+Como último comentario, esta misma comunicación UDP se pudo implementar con éxito entre Simulink y CODESYS, permitiendo un rendimiento superior de la simulación. Consideramos que podría ser una alternativa viable a OPC para este proyecto, aunque con sus propias complejidades.
 
 \section{Repositorio y Video Demostrativo}
-El proyecto completo, incluyendo los modelos de Simulink, el código en ST para Codesys y la aplicación de Unity, se encuentra disponible en el siguiente \href{https://github.com/nahuelpucciarelli/AyCD-Proyecto.git}{repositorio de GitHub}.
+El proyecto completo, incluyendo los modelos de Simulink, el código en ST para CODESYS y la aplicación de Unity, se encuentra disponible en el siguiente \href{https://github.com/nahuelpucciarelli/AyCD-Proyecto.git}{repositorio de GitHub}.
 
 Además, se ha preparado un video demostrativo que muestra el funcionamiento de la grúa en diferentes modos de operación, destacando la interacción entre los niveles de control y la visualización en Unity. El video se puede acceder a través del siguiente \href{https://youtu.be/EwhYYALPttk?si=lQyfEXJ0O0OWh1-4}{enlace a Youtube}.
 
 \newpage
 \begin{thebibliography}{9}
-\bibitem{matlab} MATLAB and Simulink. The MathWorks, Inc.
-\bibitem{codesys} CODESYS - The Industry 4.0 Automation Software. 3S-Smart Software Solutions.
-\bibitem{unity} Unity - Game Engine. Unity Technologies.
 \bibitem{siemes} \href{https://assets.new.siemens.com/siemens/assets/api/uuid:e50a2d23-95fc-401a-8f4b-a6aec736a100/simocrane-sway-control-system-for-sts.pdf}{Simocrane Sway Control System for STS. Siemens.}
 \bibitem{swaycontrol} \href{https://www.cmco.com/globalassets/case-studies/sway-control-technology/swaycontrolwhitepaper.pdf}{Sway Control Technology - White Paper. CMCO.}
 \bibitem{swaycontrol2} \href{https://sci-hub.st/10.5545/sv-jme.2010.127}{Anti-sway System for Ship-to-Shore Cranes.}
 \bibitem{swaycontrol3} \href{https://sci-hub.st/10.1109/ICIEAM.2018.8728750}{Crane Anti-Sway Control System with Sway Angle Feedback}
+\bibitem{codesys_help} \href{https://www.helpme-codesys.com/}{CODESYS Help - Documentación oficial de CODESYS.}
 \end{thebibliography}
 
 \end{document}
