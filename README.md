@@ -4,12 +4,13 @@ Para correr la simulación del sistema de forma correcta, es fundamental seguir 
 
 ### Prerrequisitos
 * **Hardware:** Es necesario tener un **joystick conectado** a la PC antes de iniciar. Este joystick debe poder ser reconocible como un mando de xbox. En caso de no contar con uno, se puede usar un mando genérico y usar alguna de las tantas aplicaciones que hay para remapear las entradas a un mando de xbox. El modelo de Simulink lo requiere para enviar los comandos de control. El mismo debe tener dos sticks analógicos. Se recomienda cableado, ya que los inalámbricos pueden causar errores de desconexión.
-* **Software:** MATLAB/Simulink 2025b o superior.
+* **Software:** MATLAB/Simulink 2025b o superior y CODESYS V3.5 + CODESYS Control Win V3.
 
 ### Paso a Paso para la Ejecución
 1. **Cargar Parámetros:** Abre MATLAB y ejecuta primero el script de parámetros (`Matlab/parametros.m`). Esto cargará en el Workspace todas las variables, ganancias y configuraciones físicas necesarias para el modelo.
 2. **Ejecutar la Animación:** Antes de iniciar el control, ejecuta el archivo `Build Unity/AnimacionGruaAyCD.exe`. Esta ventana es una visualización del modelo, y puede quedar abierta en segundo plano o en un monitor secundario para recibir los datos por red.
-3. **Iniciar el Modelo:** Abre el modelo de Simulink (`Matlab/Simulink/modelo_planta.slx` o `Matlab/Simulink/modelo_planta_CODESYS.slx`). Verifica que el joystick esté encendido y reconocido por el sistema, y presiona el botón **Run** (Ejecutar) en Simulink.
+3. **Iniciar el Modelo:** Abre el modelo de *Simulink* (`Matlab/Simulink/planta_controlador.slx` o `Matlab/Simulink/planta_CODESYS.slx`). Verifica que el joystick esté encendido y reconocido por el sistema, y presiona el botón **Run** (Ejecutar) en *Simulink*.
+4. **Ejecutar CODESYS:** Si decides correr `planta_CODESYS.slx`, primero se debe ejecutar el programa *CODESYS V3.5* y cargar el archivo `control_CODESYS.project` (en la carpeta `Codesys`). El código debe luego ser cargado a un PLC virtual como *CODESYS Control Win V3*. Una vez el PLC esté en modo *Stop*, puedes ejecutar la simulación en Simulink. Finalmente, se puede pasar el PLC al modo *Run*.
 
 ---
 
