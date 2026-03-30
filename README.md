@@ -10,7 +10,7 @@ Para correr la simulación del sistema de forma correcta, es fundamental seguir 
 1. **Cargar Parámetros:** Abre MATLAB y ejecuta primero el script de parámetros (`Matlab/parametros.m`). Esto cargará en el Workspace todas las variables, ganancias y configuraciones físicas necesarias para el modelo.
 2. **Ejecutar la Animación:** Antes de iniciar el control, ejecuta el archivo `Build Unity/AnimacionGruaAyCD.exe`. Esta ventana es una visualización del modelo, y puede quedar abierta en segundo plano o en un monitor secundario para recibir los datos por red.
 3. **Iniciar el Modelo:** Abre el modelo de *Simulink* (`Matlab/Simulink/planta_controlador.slx` o `Matlab/Simulink/planta_CODESYS.slx`). Verifica que el joystick esté encendido y reconocido por el sistema, y presiona el botón **Run** (Ejecutar) en *Simulink*.
-4. **Ejecutar CODESYS:** Si decides correr `planta_CODESYS.slx`, primero se debe ejecutar el programa *CODESYS V3.5* y cargar el archivo `control_CODESYS.project` (en la carpeta `Codesys`). El código debe luego ser cargado a un PLC virtual como *CODESYS Control Win V3*. Una vez el PLC esté en modo *Stop*, puedes ejecutar la simulación en Simulink. Finalmente, se puede pasar el PLC al modo *Run*.
+4. **Ejecutar CODESYS:** Si decides correr `planta_CODESYS.slx`, primero se debe ejecutar el programa *CODESYS V3.5* y cargar el archivo `control_CODESYS.project` (en la carpeta `Codesys/`). El código debe luego ser cargado a un PLC virtual como *CODESYS Control Win V3*. Una vez el PLC esté en modo *Stop*, puedes ejecutar la simulación en Simulink. Finalmente, se puede pasar el PLC al modo *Run*.
 
 ---
 
