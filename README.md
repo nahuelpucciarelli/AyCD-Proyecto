@@ -1,5 +1,5 @@
 # Proyecto Integrador Autómatas y Control Discreto - Aleo Rodrigo, Pucciarelli Nahuel
-![](./Informe/Imagenes/unity_grua3.png)
+![](./Informe/Imagenes/unity_grua1.png)
 ## Instrucciones de Uso y Ejecución
 Para correr la simulación del sistema de forma correcta, es fundamental seguir el orden de ejecución y asegurarse de contar con el hardware necesario.
 
