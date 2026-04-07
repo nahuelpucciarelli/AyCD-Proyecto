@@ -646,7 +646,7 @@ siendo $T_{tm}(t)$ el torque aplicado por el motor y $K_f$ la ganancia equivalen
 \begin{equation}
     K_f = \frac{i_t}{r_{td}}
 \end{equation}
-ya que el torque en el tambor cumple $T_{td}=i_t\,T_{tm}$ y la fuerza lineal equivalente sobre el carro resulta $F_{cmd}=T_{td}/r_{td}$.
+ya que el torque en el tambor cumple $T_{td}(t)=i_t\,T_{tm}(t)$ y la fuerza lineal equivalente sobre el carro resulta $F_{cmd}(t)=T_{td}(t)/r_{td}$.
 
 Aplicando la Transformada de Laplace, la función de transferencia simplificada de la planta velocidad--mando queda:
 \begin{equation}
@@ -723,22 +723,22 @@ Esta asunción permite desacoplar la dinámica del actuador (masa del carro y fr
 \subsubsection{Deducción de la Ley de Control No Lineal}
 A partir del modelo dinámico (Ley de Newton) de un péndulo simple excitado por la aceleración del carro $\ddot{x}_t$, la ecuación de movimiento está dada por:
 \begin{equation}
-    \ddot{\theta}_l = -\frac{g}{l_h}\sin(\theta_l) - \frac{\ddot{x}_t}{l_h}\cos(\theta_l)
+    \ddot{\theta}_l(t) = -\frac{g}{l_h(t)}\sin(\theta_l(t)) - \frac{\ddot{x}_t(t)}{l_h(t)}\cos(\theta_l(t))
     \label{eq:pendulo_nolineal}
 \end{equation}
 En esta arquitectura, la referencia de velocidad total enviada al variador del carro se compone de la velocidad de trayectoria planificada más la acción de control antibalanceo: $v_{ref} = v_{traj} + v_{sway}$. 
 Se define entonces una ley de control antibalanceo proporcional al ángulo de oscilación:
 \begin{equation}
-    v_{sway} = K_{sway} \, \theta_l
+    v_{sway}(t) = K_{sway} \, \theta_l(t)
     \label{eq:ley_control}
 \end{equation}
 La aceleración resultante del carro impuesta sobre el pivote del péndulo será la derivada de la referencia total:
 \begin{equation}
-    \ddot{x}_t \approx \dot{v}_{ref} \approx \dot{v}_{traj} + \frac{d}{dt}(K_{sway} \, \theta_l) = \dot{v}_{traj} + K_{sway} \, \dot{\theta}_l
+    \ddot{x}_t(t) \approx \dot{v}_{ref}(t) \approx \dot{v}_{traj}(t) + \frac{d}{dt}(K_{sway} \, \theta_l(t)) = \dot{v}_{traj}(t) + K_{sway} \, \dot{\theta}_l(t)
 \end{equation}
 Sustituyendo esta expresión en la ecuación no lineal (\ref{eq:pendulo_nolineal}) y agrupando los términos dependientes del estado del péndulo a la izquierda, se obtiene la ecuación diferencial del sistema en lazo cerrado:
 \begin{equation}
-    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \cos(\theta_l) \right) \dot{\theta}_l + \frac{g}{l_h}\sin(\theta_l) = -\frac{\dot{v}_{traj}}{l_h}\cos(\theta_l)
+    \ddot{\theta}_l(t) + \left( \frac{K_{sway}}{l_h(t)} \cos(\theta_l(t)) \right) \dot{\theta}_l(t) + \frac{g}{l_h(t)}\sin(\theta_l(t)) = -\frac{\dot{v}_{traj}(t)}{l_h(t)}\cos(\theta_l(t))
     \label{eq:lazo_cerrado_nolineal}
 \end{equation}
 Este resultado desmuestra que la cinemática del sistema transforma la señal de velocidad inyectada en un término de amortiguamiento viscoso no lineal. Dado que en la operación normal de la grúa el ángulo de oscilación está acotado ($-\pi/2 < \theta_l < \pi/2$), el término $\cos(\theta_l)$ es estrictamente positivo. Esto garantiza que el coeficiente de amortiguamiento sea siempre mayor a cero, asegurando la extracción continua de energía cinética del péndulo y la estabilidad del sistema ante cualquier ángulo operativo, sin depender de aproximaciones de ángulos pequeños. La aceleración de la trayectoria $\dot{v}_{traj}$ actúa únicamente como una fuerza forzante acotada.
@@ -748,15 +748,15 @@ Si bien la estabilidad está garantizada, para determinar analíticamente el val
 
 Evaluando la ecuación (\ref{eq:lazo_cerrado_nolineal}) alrededor del origen ($\cos(\theta_l) \to 1$ y $\sin(\theta_l) \to \theta_l$), la dinámica local se reduce a:
 \begin{equation}
-    \ddot{\theta}_l + \left( \frac{K_{sway}}{l_h} \right) \dot{\theta}_l + \left( \frac{g}{l_h} \right) \theta_l = 0
+    \ddot{\theta}_l(t) + \left( \frac{K_{sway}}{l_h(t)} \right) \dot{\theta}_l(t) + \left( \frac{g}{l_h(t)} \right) \theta_l(t) = 0
 \end{equation}
 Para garantizar un desempeño uniforme frente a la variación de la longitud del cable, se comparan los coeficientes de esta ecuación con la ecuación canónica de un sistema de segundo orden ($s^2 + 2\,\zeta\,\omega_n \,s + \omega_n^2 = 0$), donde la frecuencia natural es $\omega_n = \sqrt{g/l_h}$. Igualando el término de amortiguamiento:
 \begin{equation}
-    \frac{K_{sway}}{l_h} = 2 \, \zeta \, \omega_n \implies K_{sway} = 2 \, \zeta \, l_h \, \sqrt{\frac{g}{l_h}}
+    \frac{K_{sway}}{l_h(t)} = 2 \, \zeta \, \omega_n \implies K_{sway} = 2 \, \zeta \, l_h(t) \, \sqrt{\frac{g}{l_h(t)}}
 \end{equation}
 Simplificando, obtenemos la ganancia para un amortiguamiento crítico ($\zeta = 1$):
 \begin{equation}
-    K_{sway}(l_h) = 2 \,\sqrt{g \, l_h}
+    K_{sway}(l_h) = 2 \,\sqrt{g \, l_h(t)}
 \end{equation}
 Dado que la altura de izaje determina directamente la dinámica del péndulo, se implementa una estrategia de \textit{gain scheduling}, ajustando la ganancia $K_{sway}$ dinámicamente en función de $l_h$ para mantener las raíces del polinomio característico local invariantes durante toda la operación.
 
@@ -768,10 +768,10 @@ Se puede notar de las ecuaciones desarrolladas que la realimentación de velocid
 Para solucionar este problema y obtener una estimación limpia de la velocidad ($\hat{\omega}$), se implementan observadores de estado extendidos. Estos bloques combinan un modelo físico-matemático del sistema con un lazo de corrección basado en el error de estimación de posición.
 
 El error de estimación se define como la diferencia entre la posición angular medida por el encoder y la posición estimada internamente por el observador:
-$$e_{\theta} = \theta_{enc} - \hat{\theta}$$
+$$e_{\theta}(t) = \theta_{enc}(t) - \hat{\theta}(t)$$
 Este error alimenta tres ganancias de corrección ($L_1$, $L_2$ y $L_3$) que ajustan la dinámica del modelo para forzar la convergencia de los estados estimados hacia los estados reales de la planta. Las ecuaciones diferenciales que rigen la actualización de los estados en el observador están dadas por:
-$$\dot{\hat{\theta}} = \hat{\omega} + L_1 \, e_{\theta}$$
-$$\dot{\hat{\omega}} = \frac{1}{J_{eq}} \left( T_{ref} - b_{eq} \, \hat{\omega} + L_3 \int e_{\theta} \, dt \right) + L_2 \, e_{\theta}$$
+$$\dot{\hat{\theta}}(t) = \hat{\omega}(t) + L_1 \, e_{\theta}(t)$$
+$$\dot{\hat{\omega}}(t) = \frac{1}{J_{eq}} \left( T_{ref}(t) - b_{eq} \, \hat{\omega}(t) + L_3 \int e_{\theta}(t) \, dt \right) + L_2 \, e_{\theta}(t)$$
 Donde:
 \begin{itemize}
     \item $J_{eq}$ y $b_{eq}$ representan la inercia y fricción viscosa equivalentes reflejadas al eje del motor.
@@ -782,7 +782,7 @@ Donde:
 La arquitectura del observador es idéntica tanto para el mecanismo del carro como para el de izaje. Sin embargo, en el eje de izaje se introduce un término adicional de pre-compensación $T_{grav} = M_s \, g \, \frac{r_{hd}}{2 \, i_h}$ para contrarrestar el peso en vacío del spreader ($M_s$), evitando así un error de estimación transitorio en el instante de arranque.
 
 Finalmente, la velocidad lineal observada ($\hat{v}$) que retroalimenta al controlador regulatorio principal se obtiene mediante la relación de transmisión cinemática de cada mecanismo respectivo:
-$$\hat{v} = \hat{\omega} \cdot k_{out}$$
+$$\hat{v}(t) = \hat{\omega}(t) \cdot k_{out}$$
 Siendo la constante de conversión $k_{out} = \frac{r_{td}}{i_t}$ para el sistema del carro y $k_{out} = \frac{r_{hd}}{2 i_h}$ para el sistema de izaje.
 
 \subsubsection{Cálculo de Ganancias}
@@ -1110,7 +1110,7 @@ A continuación, los bloques de escritura/lectura de las variables de control re
 \end{figure}
 
 \subsection{Comunicación UDP Simulink/CODESYS}
-Debido al retardo que se produce en la comunicación, consideramos que OPC no es un protocolo adecuado para la comunicación entre la simulación y el controlador. Para probar esta hipótesis, se implementó una comunicación alternativa utilizando el protocolo UDP, que es un protocolo de comunicación sin conexión y de baja latencia. Esto permite a la simulación correr en tiempo real, sin experimentar retrasos significativos en la comunicación. Se implementó para el control supervisor y de seguridad, dejando de lado el control regulatorio, ya que requiere una mayor velocidad de comunicación que incluso con UDP es difícil de mantener.
+Debido al retardo que se produce en la comunicación, se considera que OPC no es un protocolo adecuado para la comunicación entre la simulación y el controlador. Para probar esta hipótesis, se implementó una comunicación alternativa utilizando el protocolo UDP, que es un protocolo de comunicación sin conexión y de baja latencia. Esto permite a la simulación correr en tiempo real, sin experimentar retrasos significativos en la comunicación. Se implementó para el control supervisor y de seguridad, dejando de lado el control regulatorio, ya que requiere una mayor velocidad de comunicación que incluso con UDP es difícil de mantener.
 
 La implementación UDP es un poco más compleja, requiere el desarrollo de un protocolo de empaquetado y desempaquetado de datos, así como la sincronización entre los sistemas. Se creó por lo tanto dos programas adicionales en CODESYS, uno para enviar los datos a Simulink (\texttt{COM\_UDP\_TX}), y otro para recibir las variables desde Simulink (\texttt{COM\_UDP\_RX}). 
 \begin{figure}[H]
